@@ -3,23 +3,28 @@ const { Sequelize, DataTypes } = require("sequelize");
 require("dotenv").config();
 
 // Create Sequelize instance using RDS credentials
-const sequelize = new Sequelize(
-  process.env.DB_NAME,      // Database name
-  process.env.DB_USER,      // Username
-  process.env.DB_PASS,      // Password
-  {
-    host: process.env.DB_HOST, // RDS endpoint
-    dialect: "postgres",
-    port: process.env.DB_PORT || 5432,
-    logging: false,
-  }
-);
+// const sequelize = new Sequelize(
+//   process.env.DB_NAME,      // Database name
+//   process.env.DB_USER,      // Username
+//   process.env.DB_PASS,      // Password
+//   {
+//     host: process.env.DB_HOST, // RDS endpoint
+//     dialect: "postgres",
+//     port: process.env.DB_PORT || 5432,
+//     logging: false,
+//   }
+// );
+
+const sequelize = new Sequelize(process.env.DB_URL, {
+  dialect: "postgres", 
+  logging: false,
+});
 
 // Function to connect DB
 const connectDB = async () => {
   try {
     await sequelize.authenticate();
-    console.log("✅ Database connected successfully to AWS RDS PostgreSQL.");
+    console.log("✅ Database connected successfully.");
   } catch (err) {
     console.error("❌ Database connection failed:", err.message);
     process.exit(1);
