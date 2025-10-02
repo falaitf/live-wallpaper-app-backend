@@ -216,12 +216,13 @@ exports.getUsers = async (req, res) => {
 
 
 exports.toggleUserStatus = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
         const { userId } = req.params;
-        const loggedInUser = req.user; // from JWT payload
+        const loggedInUser = req.user;
 
-        // appUser cannot toggle
         if (loggedInUser.userType === "appUser") {
+            await t.rollback();
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
 
@@ -232,85 +233,73 @@ exports.toggleUserStatus = async (req, res) => {
                     include: ["App"],
                 },
             ],
+            transaction: t
         });
 
         if (!user) {
+            await t.rollback();
             return res.status(404).json({ success: false, error: "User not found" });
         }
 
-        // SuperAdmin can toggle anyone
         if (loggedInUser.userType === "superAdmin") {
             user.isActive = !user.isActive;
-            await user.save();
-            return res.json({
-                success: true,
-                message: `User has been ${user.isActive ? "activated" : "deactivated"}`,
-                user: {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    userType: user.userType,
-                    isActive: user.isActive,
-                },
-            });
+            await user.save({ transaction: t });
+            await t.commit();
+            return res.json({ success: true, message: `User has been ${user.isActive ? "activated" : "deactivated"}`, user });
         }
 
-        // AppAdmin → can only toggle appUsers for their own apps
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             const userAppIds = user.UserAppPermissions.map((p) => p.appId);
 
-            // check if user belongs to admin's apps
             const hasAccess = userAppIds.some((id) => adminAppIds.includes(id));
-
             if (!hasAccess) {
+                await t.rollback();
                 return res.status(403).json({ success: false, error: "You are not authorized to toggle this user" });
             }
 
-            // toggle status
             user.isActive = !user.isActive;
-            await user.save();
+            await user.save({ transaction: t });
+            await t.commit();
 
-            return res.json({
-                success: true,
-                message: `User has been ${user.isActive ? "activated" : "deactivated"}`,
-                user: {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    userType: user.userType,
-                    isActive: user.isActive,
-                },
-            });
+            return res.json({ success: true, message: `User has been ${user.isActive ? "activated" : "deactivated"}`, user });
         }
 
-        // fallback (should not reach here)
+        await t.rollback();
         return res.status(403).json({ success: false, error: "Not authorized" });
-
     } catch (err) {
+        await t.rollback();
         console.error("❌ Error toggling user status:", err);
         res.status(500).json({ success: false, error: "Internal server error" });
     }
 };
 
+
 exports.updateUserPermissions = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
-        const loggedInUser = req.user; // from JWT
+        const loggedInUser = req.user;
         const { userId, appId, permissionIds } = req.body;
 
         // ❌ appUser cannot update permissions
         if (loggedInUser.userType === "appUser") {
+            await t.rollback();
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
 
         // Find target user
         const user = await User.findByPk(userId, {
             include: [{ model: UserAppPermission }],
+            transaction: t
         });
-        if (!user) return res.status(404).json({ success: false, error: "User not found" });
+        if (!user) {
+            await t.rollback();
+            return res.status(404).json({ success: false, error: "User not found" });
+        }
 
         // ❌ Cannot update superAdmin
         if (user.userType === "superAdmin") {
+            await t.rollback();
             return res.status(403).json({ success: false, error: "Cannot update superAdmin" });
         }
 
@@ -318,15 +307,17 @@ exports.updateUserPermissions = async (req, res) => {
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             if (!adminAppIds.includes(appId)) {
+                await t.rollback();
                 return res.status(403).json({ success: false, error: "Not allowed to update this app" });
             }
             if (user.userType !== "appUser") {
+                await t.rollback();
                 return res.status(403).json({ success: false, error: "Can only update appUsers" });
             }
         }
 
         // Remove existing permissions for this user & app
-        await UserAppPermission.destroy({ where: { userId, appId } });
+        await UserAppPermission.destroy({ where: { userId, appId }, transaction: t });
 
         // Assign new permissions
         const newPermissions = permissionIds.map((permId) => ({
@@ -337,10 +328,12 @@ exports.updateUserPermissions = async (req, res) => {
             granted: true,
         }));
 
-        await UserAppPermission.bulkCreate(newPermissions);
+        await UserAppPermission.bulkCreate(newPermissions, { transaction: t });
 
+        await t.commit();
         res.json({ success: true, message: "Permissions updated successfully" });
     } catch (err) {
+        await t.rollback();
         console.error("❌ Error updating permissions:", err);
         res.status(500).json({ success: false, error: "Internal server error" });
     }

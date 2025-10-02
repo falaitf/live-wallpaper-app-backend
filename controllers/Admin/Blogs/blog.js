@@ -1,4 +1,4 @@
-const { Blog, BlogItem, App } = require("../../../utils/db").loadModels();
+const { Blog, BlogItem, App, sequelize } = require("../../../utils/db").loadModels();
 const { uploadToS3, deleteFromS3 } = require("../../../utils/uploadToS3");
 const { v4: uuidv4 } = require("uuid");
 
@@ -14,12 +14,14 @@ const makeProxyUrl = (req, item) => {
 };
 
 exports.addBlog = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
         const { slug, title, appId } = req.body;
         const loggedInUser = req.user;
 
         // App User not allowed
         if (loggedInUser.userType === "appUser") {
+            await t.rollback(); // rollback if early exit
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
 
@@ -27,6 +29,7 @@ exports.addBlog = async (req, res) => {
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             if (!adminAppIds.includes(appId)) {
+                await t.rollback(); // rollback if unauthorized
                 return res.status(403).json({
                     success: false,
                     error: "Not authorized to add blog for this app",
@@ -34,97 +37,88 @@ exports.addBlog = async (req, res) => {
             }
         }
 
-        // Ensure app exists
-        const app = await App.findByPk(appId);
+        // Ensure app exists (inside transaction)
+        const app = await App.findByPk(appId, { transaction: t });
         if (!app) {
+            await t.rollback();
             return res.status(404).json({ success: false, error: "App not found" });
         }
 
-        const blog = await Blog.create({
-            slug,
-            title,
-            appId,
-        });
+        // Create blog (inside transaction)
+        const blog = await Blog.create(
+            { slug, title, appId },
+            { transaction: t }
+        );
+
+        await t.commit();
 
         res.status(201).json({ success: true, data: blog });
     } catch (err) {
+        await t.rollback();
         console.error("❌ Error creating blog:", err);
         res.status(500).json({ success: false, error: "Failed to create blog" });
     }
 };
 
 exports.addBlogItem = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
         const { blogId, type, value } = req.body;
         const loggedInUser = req.user;
 
-        // Validate required fields
         if (!blogId || !type) {
-            return res.status(400).json({
-                success: false,
-                error: "blogId and type are required",
-            });
+            await t.rollback();
+            return res.status(400).json({ success: false, error: "blogId and type are required" });
         }
 
-        // Validate type
         if (!["heading", "description", "image"].includes(type)) {
-            return res.status(400).json({
-                success: false,
-                error: "Invalid type. Must be heading, description, or image",
-            });
+            await t.rollback();
+            return res.status(400).json({ success: false, error: "Invalid type" });
         }
 
-        // ✅ Ensure blog exists
-        const blog = await Blog.findByPk(blogId);
+        const blog = await Blog.findByPk(blogId, { transaction: t });
         if (!blog) {
+            await t.rollback();
             return res.status(404).json({ success: false, error: "Blog not found" });
         }
 
-        // ✅ Authorization check
+        // Authorization
         if (loggedInUser.userType === "appUser") {
+            await t.rollback();
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
-
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             if (!adminAppIds.includes(blog.appId)) {
-                return res.status(403).json({
-                    success: false,
-                    error: "Not authorized to add blog item for this app",
-                });
+                await t.rollback();
+                return res.status(403).json({ success: false, error: "Not authorized" });
             }
         }
 
-        // ✅ Handle value or upload image
         let finalValue = value;
         if (type === "image") {
             if (!req.file) {
-                return res.status(400).json({
-                    success: false,
-                    error: "Image file is required for type=image",
-                });
+                await t.rollback();
+                return res.status(400).json({ success: false, error: "Image required" });
             }
             const s3Url = await uploadToS3(req.file, "blogs/");
             finalValue = getS3Key(s3Url);
         } else {
             if (!value || !value.trim()) {
-                return res.status(400).json({
-                    success: false,
-                    error: `Value is required for type=${type}`,
-                });
+                await t.rollback();
+                return res.status(400).json({ success: false, error: `Value required for type=${type}` });
             }
         }
 
-        // ✅ Create BlogItem
-        const item = await BlogItem.create({
-            id: uuidv4(),
-            blogId,
-            type,
-            value: finalValue,
-        });
+        const item = await BlogItem.create(
+            { id: uuidv4(), blogId, type, value: finalValue },
+            { transaction: t }
+        );
 
+        await t.commit();
         return res.status(201).json({ success: true, item });
     } catch (err) {
+        await t.rollback();
         console.error("❌ Add Blog Item Error:", err);
         return res.status(500).json({ success: false, error: "Internal Server Error" });
     }
@@ -253,18 +247,22 @@ exports.getBlogWithItems = async (req, res) => {
 };
 
 exports.updateBlog = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
         const { blogId } = req.params;
         const { slug, title } = req.body;
         const loggedInUser = req.user;
 
-        const blog = await Blog.findByPk(blogId);
+        // ✅ fetch blog inside transaction
+        const blog = await Blog.findByPk(blogId, { transaction: t });
         if (!blog) {
+            await t.rollback();
             return res.status(404).json({ success: false, error: "Blog not found" });
         }
 
         // ❌ AppUser not allowed
         if (loggedInUser.userType === "appUser") {
+            await t.rollback();
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
 
@@ -272,6 +270,7 @@ exports.updateBlog = async (req, res) => {
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             if (!adminAppIds.includes(blog.appId)) {
+                await t.rollback();
                 return res.status(403).json({
                     success: false,
                     error: "Not authorized to update this blog",
@@ -279,102 +278,98 @@ exports.updateBlog = async (req, res) => {
             }
         }
 
+        // ✅ update fields inside transaction
         blog.slug = slug || blog.slug;
         blog.title = title || blog.title;
-        await blog.save();
+        await blog.save({ transaction: t });
 
+        await t.commit();
         res.json({ success: true, data: blog });
     } catch (err) {
+        await t.rollback();
         console.error("❌ Error updating blog:", err);
         res.status(500).json({ success: false, error: "Failed to update blog" });
     }
 };
 
 exports.deleteBlog = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
         const { blogId } = req.params;
         const loggedInUser = req.user;
 
-        const blog = await Blog.findByPk(blogId, { include: [BlogItem] });
+        const blog = await Blog.findByPk(blogId, { include: [BlogItem], transaction: t });
         if (!blog) {
+            await t.rollback();
             return res.status(404).json({ success: false, error: "Blog not found" });
         }
 
-        // ❌ AppUser not allowed
         if (loggedInUser.userType === "appUser") {
+            await t.rollback();
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
-
-        // ✅ AppAdmin restriction
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             if (!adminAppIds.includes(blog.appId)) {
-                return res.status(403).json({
-                    success: false,
-                    error: "Not authorized to delete this blog",
-                });
+                await t.rollback();
+                return res.status(403).json({ success: false, error: "Not authorized" });
             }
         }
 
-        // 🗑️ Delete blog items + S3 images
         for (const item of blog.BlogItems) {
             if (item.type === "image" && item.value) {
-                await deleteFromS3(item.value);
+                await deleteFromS3(item.value); // external, cannot rollback
             }
-            await item.destroy();
+            await item.destroy({ transaction: t });
         }
 
-        await blog.destroy();
+        await blog.destroy({ transaction: t });
+        await t.commit();
 
         res.json({ success: true, message: "Blog deleted successfully" });
     } catch (err) {
+        await t.rollback();
         console.error("❌ Error deleting blog:", err);
         res.status(500).json({ success: false, error: "Failed to delete blog" });
     }
 };
 
 exports.updateBlogItem = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
         const { itemId } = req.params;
         const { type, value } = req.body;
         const loggedInUser = req.user;
 
-        const item = await BlogItem.findByPk(itemId, { include: [Blog] });
+        const item = await BlogItem.findByPk(itemId, { include: [Blog], transaction: t });
         if (!item) {
+            await t.rollback();
             return res.status(404).json({ success: false, error: "Blog item not found" });
         }
 
         const blog = item.Blog;
 
-        // ❌ AppUser not allowed
         if (loggedInUser.userType === "appUser") {
+            await t.rollback();
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
-
-        // ✅ AppAdmin restriction
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             if (!adminAppIds.includes(blog.appId)) {
-                return res.status(403).json({
-                    success: false,
-                    error: "Not authorized to update this blog item",
-                });
+                await t.rollback();
+                return res.status(403).json({ success: false, error: "Not authorized" });
             }
         }
 
-        // Handle updates
         if (type && !["heading", "description", "image"].includes(type)) {
-            return res.status(400).json({
-                success: false,
-                error: "Invalid type. Must be heading, description, or image",
-            });
+            await t.rollback();
+            return res.status(400).json({ success: false, error: "Invalid type" });
         }
 
         if (type) item.type = type;
 
         if (item.type === "image") {
             if (req.file) {
-                // delete old image
                 if (item.value) {
                     await deleteFromS3(item.value);
                 }
@@ -387,51 +382,54 @@ exports.updateBlogItem = async (req, res) => {
             }
         }
 
-        await item.save();
+        await item.save({ transaction: t });
+        await t.commit();
 
         res.json({ success: true, data: item });
     } catch (err) {
+        await t.rollback();
         console.error("❌ Error updating blog item:", err);
         res.status(500).json({ success: false, error: "Failed to update blog item" });
     }
 };
 
+
 exports.deleteBlogItem = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
         const { itemId } = req.params;
         const loggedInUser = req.user;
 
-        const item = await BlogItem.findByPk(itemId, { include: [Blog] });
+        const item = await BlogItem.findByPk(itemId, { include: [Blog], transaction: t });
         if (!item) {
+            await t.rollback();
             return res.status(404).json({ success: false, error: "Blog item not found" });
         }
 
         const blog = item.Blog;
 
-        // ❌ AppUser not allowed
         if (loggedInUser.userType === "appUser") {
+            await t.rollback();
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
-
-        // ✅ AppAdmin restriction
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             if (!adminAppIds.includes(blog.appId)) {
-                return res.status(403).json({
-                    success: false,
-                    error: "Not authorized to delete this blog item",
-                });
+                await t.rollback();
+                return res.status(403).json({ success: false, error: "Not authorized" });
             }
         }
 
         if (item.type === "image" && item.value) {
-            await deleteFromS3(item.value);
+            await deleteFromS3(item.value); // cannot rollback external
         }
 
-        await item.destroy();
+        await item.destroy({ transaction: t });
+        await t.commit();
 
         res.json({ success: true, message: "Blog item deleted successfully" });
     } catch (err) {
+        await t.rollback();
         console.error("❌ Error deleting blog item:", err);
         res.status(500).json({ success: false, error: "Failed to delete blog item" });
     }
