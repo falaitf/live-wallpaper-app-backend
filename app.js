@@ -6,6 +6,7 @@ var logger = require('morgan');
 require("dotenv").config();
 const rateLimit = require("express-rate-limit");
 const { connectDB, loadModels } = require("./utils/db");
+const seedAppsAndPermissions = require("./seed/appsAndPermissions");
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -27,14 +28,21 @@ const publicLimiterWithCaptcha = rateLimit({
 
 
 //Admin
-var adminCategoryRouter = require('./routes/Admin/category');
-var adminWallpaperRouter = require('./routes/Admin/wallpaper');
+var adminAuthRouter = require('./routes/Admin/Auth/auth');
+var adminAppRouter = require('./routes/Admin/App/app');
+var adminUserRouter = require('./routes/Admin/User/user');
+var adminBlogRouter = require('./routes/Admin/Blogs/blog');
+var adminCategoryRouter = require('./routes/Admin/Live-Wallpaper/category');
+var adminWallpaperRouter = require('./routes/Admin/Live-Wallpaper/wallpaper');
 
 // Category
 var categoryRouter = require('./routes/category');
 
 // Wallpaper
 var wallpaperRouter = require('./routes/wallpaper');
+
+// Blogs
+var blogRouter = require('./routes/blog');
 
 // FileProxy
 var fileProxyRouter = require('./routes/fileProxy');
@@ -48,17 +56,30 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Connect to database
-connectDB();
+(async () => {
+  try {
+    // Connect DB
+    await connectDB();
 
-// Load models
-const db = loadModels();
+    // Load models
+    const db = loadModels();
 
-// Optional: sync models
-db.sequelize.sync({ alter: true }).then(() =>
-  console.log("📦 Models synchronized")
-);
+    // Sync models
+    await db.sequelize.sync({ alter: true });
+    console.log("📦 Models synchronized");
 
+    // Run seeding AFTER sync
+    await seedAppsAndPermissions(db);
+
+    // Start server
+    app.listen(process.env.PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${process.env.PORT}`);
+    });
+  } catch (err) {
+    console.error("❌ Startup error:", err);
+    process.exit(1);
+  }
+})();
 
 function validateAPIKey(req, res, next) {
   const authkey = req.header("api-key");
@@ -146,14 +167,21 @@ app.use("/api/v1", (req, res, next) => {
 });
 
 //Admin
-app.use('/api/v1/admin/category', adminCategoryRouter);
-app.use('/api/v1/admin/wallpaper', adminWallpaperRouter);
+app.use('/api/v1/admin/auth', adminAuthRouter);
+app.use('/api/v1/admin/app', adminAppRouter);
+app.use('/api/v1/admin/user', adminUserRouter);
+app.use('/api/v1/admin/blog', adminBlogRouter);
+app.use('/api/v1/admin/live-wallpaper/category', adminCategoryRouter);
+app.use('/api/v1/admin/live-wallpaper/wallpaper', adminWallpaperRouter);
 
 // Category
 app.use('/api/v1/category', categoryRouter);
 
 // Wallpaper
 app.use('/api/v1/wallpaper', wallpaperRouter);
+
+// Blog 
+app.use('/api/v1/blog', blogRouter);
 
 // fileproxy
 app.use('/api/v1/files', fileProxyRouter);

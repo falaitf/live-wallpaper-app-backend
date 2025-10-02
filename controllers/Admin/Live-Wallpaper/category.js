@@ -1,5 +1,5 @@
-const { Category } = require("../../utils/db").loadModels();
-const cache = require("../../utils/cache");
+const { Category } = require("../../../utils/db").loadModels();
+const cache = require("../../../utils/cache");
 
 // Add new category
 const addCategory = async (req, res) => {

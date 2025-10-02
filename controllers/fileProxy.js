@@ -1,5 +1,5 @@
 const AWS = require("aws-sdk");
-const { Wallpaper } = require("../utils/db").loadModels();
+const { Wallpaper, BlogItem } = require("../utils/db").loadModels();
 
 const s3 = new AWS.S3({ region: process.env.AWS_REGION });
 
@@ -45,3 +45,24 @@ exports.getFile = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch file" });
   }
 };
+
+exports.getBlogFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const item = await BlogItem.findByPk(id);
+    if (!item || item.type !== "image") {
+      return res.status(404).json({ error: "Image not found" });
+    }
+
+    const params = { Bucket: process.env.AWS_BUCKET_NAME, Key: item.value };
+    const s3Stream = s3.getObject(params).createReadStream();
+
+    res.setHeader("Content-Type", "image/jpeg"); // you can detect type dynamically if needed
+    s3Stream.pipe(res);
+  } catch (err) {
+    console.error("❌ Proxy error (blog image):", err);
+    res.status(500).json({ error: "Failed to fetch image" });
+  }
+};
+
