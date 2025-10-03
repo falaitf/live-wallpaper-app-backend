@@ -21,7 +21,7 @@ exports.addBlog = async (req, res) => {
 
         // App User not allowed
         if (loggedInUser.userType === "appUser") {
-            await t.rollback(); // rollback if early exit
+            await t.rollback(); 
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
 
@@ -29,7 +29,7 @@ exports.addBlog = async (req, res) => {
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             if (!adminAppIds.includes(appId)) {
-                await t.rollback(); // rollback if unauthorized
+                await t.rollback(); 
                 return res.status(403).json({
                     success: false,
                     error: "Not authorized to add blog for this app",

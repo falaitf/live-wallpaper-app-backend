@@ -48,6 +48,10 @@ const loadModels = () => {
   const UserAppPermission = require("../models/userAppPermission")(sequelize, DataTypes);
   const Blog = require("../models/blog")(sequelize, DataTypes);
   const BlogItem = require("../models/blogItem")(sequelize, DataTypes);
+  const Page = require("../models/page")(sequelize, DataTypes);
+  const Media = require("../models/pageMedia")(sequelize, DataTypes);
+  const Section = require("../models/pageSection")(sequelize, DataTypes);
+  const SectionItem = require("../models/pageSectionItems")(sequelize, DataTypes);
 
   // =============================
   // Wallpaper ↔ Category (M:M)
@@ -132,13 +136,30 @@ const loadModels = () => {
   // Blogs ↔ App (1:M)
   // =============================
   Blog.belongsTo(App, { foreignKey: "appId" });
-  App.hasMany(Blog, { foreignKey: "appId"});
+  App.hasMany(Blog, { foreignKey: "appId" });
 
   // =============================
   // Blogs ↔ BlogItems (1:M)
   // =============================
-  Blog.hasMany(BlogItem, { foreignKey: "blogId"});
-  BlogItem.belongsTo(Blog, { foreignKey: "blogId"});
+  Blog.hasMany(BlogItem, { foreignKey: "blogId" });
+  BlogItem.belongsTo(Blog, { foreignKey: "blogId" });
+
+  Page.hasMany(Section, { foreignKey: "pageId", as: "sections" });
+
+  Media.belongsTo(Section, { foreignKey: "sectionId" });
+  Media.belongsTo(SectionItem, { foreignKey: "itemId" });
+
+  Section.belongsTo(Page, { foreignKey: "pageId" });
+  Section.hasMany(SectionItem, { foreignKey: "sectionId", as: "items" });
+  Section.hasMany(Media, { foreignKey: "sectionId", as: "media" });
+
+  SectionItem.belongsTo(Section, { foreignKey: "sectionId" });
+  SectionItem.hasMany(Media, { foreignKey: "itemId", as: "media" });
+
+  Page.belongsTo(App, { foreignKey: "appId", as: "app" });
+
+  App.hasMany(Page, { foreignKey: "appId", as: "pages" });
+
 
   return {
     sequelize,
@@ -151,7 +172,11 @@ const loadModels = () => {
     Permission,
     UserAppPermission,
     Blog,
-    BlogItem
+    BlogItem,
+    Page,
+    Section,
+    SectionItem,
+    Media
   };
 };
 

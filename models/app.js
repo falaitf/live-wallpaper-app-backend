@@ -1,3 +1,4 @@
+// App.js
 module.exports = (sequelize, DataTypes) => {
   const App = sequelize.define(
     "App",
@@ -8,6 +9,5 @@ module.exports = (sequelize, DataTypes) => {
     },
     { tableName: "apps", timestamps: true }
   );
-
   return App;
 };

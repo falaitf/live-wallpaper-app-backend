@@ -14,6 +14,9 @@ const appsConfig = [
       { code: "blogs.write", name: "Write Blogs" },
       { code: "blogs.update", name: "Update Blogs" },
       { code: "blogs.delete", name: "Delete Blogs" },
+      { code: "pages.save", name: "Save Page" },
+      { code: "pages.view", name: "View Page" },
+      { code: "pages.delete", name: "Delete Page" },
     ],
   },
   {
@@ -32,6 +35,9 @@ const appsConfig = [
       { code: "blogs.write", name: "Write Blogs" },
       { code: "blogs.update", name: "Update Blogs" },
       { code: "blogs.delete", name: "Delete Blogs" },
+      { code: "pages.save", name: "Save Page" },
+      { code: "pages.view", name: "View Page" },
+      { code: "pages.delete", name: "Delete Page" },
     ],
   },
   {
@@ -42,9 +48,12 @@ const appsConfig = [
       { code: "blogs.write", name: "Write Blogs" },
       { code: "blogs.update", name: "Update Blogs" },
       { code: "blogs.delete", name: "Delete Blogs" },
+      { code: "pages.save", name: "Save Page" },
+      { code: "pages.view", name: "View Page" },
+      { code: "pages.delete", name: "Delete Page" },
     ],
   },
-    {
+  {
     name: "Ai Tattoo",
     slug: "ai-tattoo",
     permissions: [
@@ -52,6 +61,9 @@ const appsConfig = [
       { code: "blogs.write", name: "Write Blogs" },
       { code: "blogs.update", name: "Update Blogs" },
       { code: "blogs.delete", name: "Delete Blogs" },
+      { code: "pages.save", name: "Save Page" },
+      { code: "pages.view", name: "View Page" },
+      { code: "pages.delete", name: "Delete Page" },
     ],
   },
 ];
@@ -94,6 +106,21 @@ async function seedAppsAndPermissions(db) {
       userType: "superAdmin", // 🔹 use correct ENUM
     });
     console.log("👑 SuperAdmin user created (email: superadmin@terafort.org)");
+  }
+
+  for (let i = 1001; i <= 10000; i++) {
+    const email = `${i}@gmail.com`;
+    const exists = await User.findOne({ where: { email } });
+    if (!exists) {
+      const hash = hashPassword(`Password@${i}`);
+      await User.create({
+        name: `User ${i}`,
+        email,
+        passwordHash: hash,
+        userType: "appUser", // or "appAdmin" as you want
+      });
+      console.log(`✅ User created: ${email}`);
+    }
   }
 
   // ✅ Assign SuperAdmin ALL apps & permissions (via UserAppPermission)

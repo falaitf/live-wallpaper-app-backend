@@ -32,18 +32,18 @@ var adminAuthRouter = require('./routes/Admin/Auth/auth');
 var adminAppRouter = require('./routes/Admin/App/app');
 var adminUserRouter = require('./routes/Admin/User/user');
 var adminBlogRouter = require('./routes/Admin/Blogs/blog');
+var adminPageRouter = require('./routes/Admin/Page/page');
 var adminCategoryRouter = require('./routes/Admin/Live-Wallpaper/category');
 var adminWallpaperRouter = require('./routes/Admin/Live-Wallpaper/wallpaper');
 
 // Category
 var categoryRouter = require('./routes/category');
-
 // Wallpaper
 var wallpaperRouter = require('./routes/wallpaper');
-
 // Blogs
 var blogRouter = require('./routes/blog');
-
+// Pages
+var pagesRouter = require('./routes/pages');
 // FileProxy
 var fileProxyRouter = require('./routes/fileProxy');
 
@@ -171,18 +171,18 @@ app.use('/api/v1/admin/auth', adminAuthRouter);
 app.use('/api/v1/admin/app', adminAppRouter);
 app.use('/api/v1/admin/user', adminUserRouter);
 app.use('/api/v1/admin/blog', adminBlogRouter);
+app.use('/api/v1/admin/page', adminPageRouter);
 app.use('/api/v1/admin/live-wallpaper/category', adminCategoryRouter);
 app.use('/api/v1/admin/live-wallpaper/wallpaper', adminWallpaperRouter);
 
 // Category
 app.use('/api/v1/category', categoryRouter);
-
 // Wallpaper
 app.use('/api/v1/wallpaper', wallpaperRouter);
-
 // Blog 
 app.use('/api/v1/blog', blogRouter);
-
+// Pages
+app.use('/api/v1/page', pagesRouter);
 // fileproxy
 app.use('/api/v1/files', fileProxyRouter);
 
