@@ -108,39 +108,29 @@ async function seedAppsAndPermissions(db) {
     console.log("👑 SuperAdmin user created (email: superadmin@terafort.org)");
   }
 
-  for (let i = 1001; i <= 10000; i++) {
-    const email = `${i}@gmail.com`;
-    const exists = await User.findOne({ where: { email } });
-    if (!exists) {
-      const hash = hashPassword(`Password@${i}`);
-      await User.create({
-        name: `User ${i}`,
-        email,
-        passwordHash: hash,
-        userType: "appUser", // or "appAdmin" as you want
-      });
-      console.log(`✅ User created: ${email}`);
-    }
-  }
-
   // ✅ Assign SuperAdmin ALL apps & permissions (via UserAppPermission)
   const allApps = await App.findAll();
   const allPermissions = await Permission.findAll();
 
   for (const app of allApps) {
-    for (const perm of allPermissions.filter(p => p.appId === app.id)) {
-      const exists = await UserAppPermission.findOne({
-        where: { userId: superAdmin.id, appId: app.id, permissionId: perm.id },
-      });
+    const appPermissions = allPermissions.filter(p => p.appId === app.id);
 
-      if (!exists) {
-        await UserAppPermission.create({
+    for (const perm of appPermissions) {
+      const [record, created] = await UserAppPermission.findOrCreate({
+        where: {
           userId: superAdmin.id,
           appId: app.id,
           permissionId: perm.id,
+        },
+        defaults: {
           granted: true,
-        });
+        },
+      });
+
+      if (created) {
         console.log(`🔗 Linked SuperAdmin → ${app.slug} → ${perm.code}`);
+      } else {
+        // console.log(`✅ Already linked: ${app.slug} → ${perm.code}`);
       }
     }
   }

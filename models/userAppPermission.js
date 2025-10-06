@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
       indexes: [
         {
           unique: true,
-          fields: ["userId", "appId", "permissionId"], // ✅ include userId too
+          fields: ["userId", "appId", "permissionId"], 
         },
       ],
     }

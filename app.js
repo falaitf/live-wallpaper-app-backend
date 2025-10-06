@@ -5,7 +5,7 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 require("dotenv").config();
 const rateLimit = require("express-rate-limit");
-const { connectDB, loadModels } = require("./utils/db");
+const { connectDB, loadModels, sequelize } = require("./utils/db");
 const seedAppsAndPermissions = require("./seed/appsAndPermissions");
 
 var indexRouter = require('./routes/index');
