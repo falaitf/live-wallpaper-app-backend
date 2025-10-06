@@ -22,9 +22,9 @@ router.get("/category/:categoryName", authenticateJWT,
   authorizePermission("wallpapers.view"), wallpaperController.getVideosByCategory);
 router.get("/search", authenticateJWT,
   authorizePermission("wallpapers.view"), wallpaperController.searchVideos);
-router.put("/update", authenticateJWT,
+router.put("/update/:id", authenticateJWT,
   authorizePermission("wallpapers.update"), wallpaperController.updateWallpaper);
-  router.delete("/delete", authenticateJWT,
+  router.delete("/delete/:id", authenticateJWT,
   authorizePermission("wallpapers.delete"), wallpaperController.deleteWallpaper);
 
 module.exports = router;
