@@ -68,19 +68,19 @@ app.use(express.static(path.join(__dirname, 'public')));
     await db.sequelize.sync({ alter: true });
     console.log("📦 Models synchronized");
 
-    (async () => {
-      try {
-        await sequelize.query(`
-      ALTER TABLE "user_app_permissions"
-      DROP CONSTRAINT IF EXISTS "user_app_permissions_userId_key";
-    `);
-        console.log('✅ Constraint removed successfully.');
-        process.exit(0);
-      } catch (error) {
-        console.error('❌ Error removing constraint:', error);
-        process.exit(1);
-      }
-    })();
+    // (async () => {
+    //   try {
+    //     await sequelize.query(`
+    //   ALTER TABLE "user_app_permissions"
+    //   DROP CONSTRAINT IF EXISTS "user_app_permissions_userId_key";
+    // `);
+    //     console.log('✅ Constraint removed successfully.');
+    //     process.exit(0);
+    //   } catch (error) {
+    //     console.error('❌ Error removing constraint:', error);
+    //     process.exit(1);
+    //   }
+    // })();
 
     // Run seeding AFTER sync
     await seedAppsAndPermissions(db);

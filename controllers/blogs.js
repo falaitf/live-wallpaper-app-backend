@@ -41,10 +41,7 @@ exports.getBlogs = async (req, res) => {
     // 🖼 Convert image items to proxy URLs
     const blogs = rows.map((blog) => {
       const json = blog.toJSON();
-      const BlogItems = json.BlogItems?.map((item) => ({
-        ...item,
-        value: item.type === "image" ? makeProxyUrl(req, item.id) : item.value,
-      }));
+      const BlogItems = json.BlogItems
       return { ...json, BlogItems };
     });
 
@@ -78,10 +75,7 @@ exports.getBlogWithItems = async (req, res) => {
     if (!blog) return res.status(404).json({ success: false, error: "Blog not found" });
 
     // 🖼️ Convert image items to proxy URLs
-    const BlogItems = blog.BlogItems.map((item) => ({
-      ...item.toJSON(),
-      value: item.type === "image" ? makeProxyUrl(req, item.id) : item.value,
-    }));
+    const BlogItems = blog.BlogItems
 
     res.json({ success: true, data: { ...blog.toJSON(), BlogItems } });
   } catch (err) {
