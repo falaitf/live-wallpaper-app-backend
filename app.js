@@ -13,7 +13,7 @@ var usersRouter = require('./routes/users');
 
 const publicLimiterWithCaptcha = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minutes
-  max: 100, 
+  max: 100,
   handler: (req, res, next, options) => {
     // Print/log client IP when limit is exceeded
     console.log("⚠️ Rate limit exceeded by IP:", req.ip);
@@ -67,6 +67,20 @@ app.use(express.static(path.join(__dirname, 'public')));
     // Sync models
     await db.sequelize.sync({ alter: true });
     console.log("📦 Models synchronized");
+
+    (async () => {
+      try {
+        await sequelize.query(`
+      ALTER TABLE "user_app_permissions"
+      DROP CONSTRAINT IF EXISTS "user_app_permissions_userId_key";
+    `);
+        console.log('✅ Constraint removed successfully.');
+        process.exit(0);
+      } catch (error) {
+        console.error('❌ Error removing constraint:', error);
+        process.exit(1);
+      }
+    })();
 
     // Run seeding AFTER sync
     await seedAppsAndPermissions(db);
@@ -161,7 +175,7 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use("/api/v1", (req, res, next) => {
   if (req.path.startsWith("/files")) {
-    return next(); 
+    return next();
   }
   publicLimiterWithCaptcha(req, res, next);
 });

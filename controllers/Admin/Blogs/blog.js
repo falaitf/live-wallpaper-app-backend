@@ -21,7 +21,7 @@ exports.addBlog = async (req, res) => {
 
         // App User not allowed
         if (loggedInUser.userType === "appUser") {
-            await t.rollback(); 
+            await t.rollback();
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
 
@@ -29,7 +29,7 @@ exports.addBlog = async (req, res) => {
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
             if (!adminAppIds.includes(appId)) {
-                await t.rollback(); 
+                await t.rollback();
                 return res.status(403).json({
                     success: false,
                     error: "Not authorized to add blog for this app",
@@ -170,15 +170,7 @@ exports.getBlogs = async (req, res) => {
             const json = blog.toJSON();
 
             // transform BlogItems so image.value becomes proxy URL
-            const items = json.BlogItems?.map((item) => {
-                if (item.type === "image") {
-                    return {
-                        ...item,
-                        value: makeProxyUrl(req, item.id),
-                    };
-                }
-                return item;
-            });
+            const items = json.BlogItems
 
             return {
                 ...json,
@@ -234,10 +226,6 @@ exports.getBlogWithItems = async (req, res) => {
 
         // 🖼 Convert image items to proxy URLs
         const jsonBlog = blog.toJSON();
-        jsonBlog.BlogItems = jsonBlog.BlogItems.map((item) => ({
-            ...item,
-            value: item.type === "image" ? makeProxyUrl(req, item.id) : item.value,
-        }));
 
         res.json({ success: true, data: jsonBlog });
     } catch (err) {

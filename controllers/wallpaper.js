@@ -31,9 +31,9 @@ exports.getAllVideos = async (req, res) => {
             id: w.id,
             category: w.categories?.[0]?.name || null,
             title: w.title,
-            url: w.url ? `${baseUrl}/api/v1/files/${w.id}/video` : null,
-            thumbnail: w.thumbnail ? `${baseUrl}/api/v1/files/${w.id}/thumbnail` : null,
-            gif: w.gif ? `${baseUrl}/api/v1/files/${w.id}/gif` : null,
+            url: w.url ? w.url : null,
+            thumbnail: w.thumbnail ? w.thumbnail : null,
+            gif: w.gif ? w.gif : null,
             type: w.type,
         }));
 
@@ -86,9 +86,9 @@ exports.getVideosByCategory = async (req, res) => {
             id: w.id,
             category: w.categories?.[0]?.name || null,
             title: w.title,
-            url: w.url ? `${baseUrl}/api/v1/files/${w.id}/video` : null,
-            thumbnail: w.thumbnail ? `${baseUrl}/api/v1/files/${w.id}/thumbnail` : null,
-            gif: w.gif ? `${baseUrl}/api/v1/files/${w.id}/gif` : null,
+            url: w.url ? w.url : null,
+            thumbnail: w.thumbnail ? w.thumbnail : null,
+            gif: w.gif ? w.gif : null,
             type: w.type,
         }));
 
@@ -168,9 +168,9 @@ exports.searchVideos = async (req, res) => {
                 wallpapers: fallback.rows.map((w) => ({
                     id: w.id,
                     title: w.title,
-                    url: w.url ? `${baseUrl}/api/v1/files/${w.id}/video` : null,
-                    thumbnail: w.thumbnail ? `${baseUrl}/api/v1/files/${w.id}/thumbnail` : null,
-                    gif: w.gif ? `${baseUrl}/api/v1/files/${w.id}/gif` : null,
+                    url: w.url ? w.url : null,
+                    thumbnail: w.thumbnail ? w.thumbnail : null,
+                    gif: w.gif ? w.gif : null,
                     type: w.type,
                     status: w.status,
                     isPremium: w.isPremium,
@@ -189,9 +189,9 @@ exports.searchVideos = async (req, res) => {
             wallpapers: rows.map((w) => ({
                 id: w.id,
                 title: w.title,
-                url: w.url ? `${baseUrl}/api/v1/files/${w.id}/video` : null,
-                thumbnail: w.thumbnail ? `${baseUrl}/api/v1/files/${w.id}/thumbnail` : null,
-                gif: w.gif ? `${baseUrl}/api/v1/files/${w.id}/gif` : null,
+                url: w.url ? w.url : null,
+                thumbnail: w.thumbnail ? w.thumbnail : null,
+                gif: w.gif ? w.gif : null,
                 type: w.type,
                 category: w.categories[0].name,
             })),
