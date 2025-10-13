@@ -7,6 +7,7 @@ require("dotenv").config();
 const rateLimit = require("express-rate-limit");
 const { connectDB, loadModels, sequelize } = require("./utils/db");
 const seedAppsAndPermissions = require("./seed/appsAndPermissions");
+const cors = require("cors");
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -55,6 +56,28 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map(origin => origin.trim())
+  : ["http://localhost:3000"]; // fallback default
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.warn(`❌ CORS blocked for origin: ${origin}`);
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 
 (async () => {
   try {
@@ -65,8 +88,8 @@ app.use(express.static(path.join(__dirname, 'public')));
     const db = loadModels();
 
     // Sync models
-    await db.sequelize.sync({ alter: true });
-    console.log("📦 Models synchronized");
+    // await db.sequelize.sync({ alter: true });
+    // console.log("📦 Models synchronized");
 
     // (async () => {
     //   try {
@@ -83,7 +106,7 @@ app.use(express.static(path.join(__dirname, 'public')));
     // })();
 
     // Run seeding AFTER sync
-    await seedAppsAndPermissions(db);
+    // await seedAppsAndPermissions(db);
 
     // Start server
     app.listen(process.env.PORT, () => {

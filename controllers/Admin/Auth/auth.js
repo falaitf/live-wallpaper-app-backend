@@ -35,23 +35,51 @@ exports.login = async (req, res) => {
       include: [App, Permission],
     });
 
-    const permissions = userPermissions.map((up) => ({
-      app: { id: up.App.id, name: up.App.name, slug: up.App.slug },
-      permission: { code: up.Permission.code, name: up.Permission.name },
-    }));
+    // const permissions = userPermissions.map((up) => ({
+    //   app: { id: up.App.id, name: up.App.name, slug: up.App.slug },
+    //   permission: { code: up.Permission.code, name: up.Permission.name },
+    // }));
+
+    const groupedPermissions = Object.values(
+      userPermissions.reduce((acc, up) => {
+        const appId = up.App.id;
+        const moduleName = up.Permission.code.split('.')[0]; // e.g. "blogs" from "blogs.read"
+
+        if (!acc[appId]) {
+          acc[appId] = {
+            app: {
+              id: up.App.id,
+              name: up.App.name,
+              slug: up.App.slug,
+            },
+            permissions: {},
+          };
+        }
+
+        if (!acc[appId].permissions[moduleName]) {
+          acc[appId].permissions[moduleName] = [];
+        }
+
+        acc[appId].permissions[moduleName].push(up.Permission.code
+        );
+
+        return acc;
+      }, {})
+    );
+
 
     // Generate tokens
     const tokens = generateTokens({
       id: user.id,
       email: user.email,
       userType: user.userType,
-      permissions,
+      permissions: groupedPermissions,
     });
 
     res.json({
       message: "Login successful",
       user: { id: user.id, email: user.email, name: user.name, userType: user.userType },
-      permissions,
+      permissions: groupedPermissions,
       ...tokens,
     });
   } catch (err) {

@@ -17,7 +17,7 @@ router.post(
   wallpaperController.createWallpaper
 );
 router.get("/get", authenticateJWT,
-  authorizePermission("wallpapers.view"), wallpaperController.getAllVideos);
+  authorizePermission("wallpapers.view"), wallpaperController.searchVideos);
 router.get("/category/:categoryName", authenticateJWT,
   authorizePermission("wallpapers.view"), wallpaperController.getVideosByCategory);
 router.get("/search", authenticateJWT,

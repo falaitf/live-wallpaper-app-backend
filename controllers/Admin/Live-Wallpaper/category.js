@@ -1,5 +1,16 @@
 const { Category } = require("../../../utils/db").loadModels();
 const cache = require("../../../utils/cache");
+const { Op } = require("sequelize");
+
+function clearCategoryCache() {
+  const keys = cache.keys();
+  keys.forEach((key) => {
+    if (key.startsWith("categories_")) {
+      cache.del(key);
+    }
+  });
+  console.log("🧹 Cleared all category-related cache entries");
+}
 
 // Add new category
 const addCategory = async (req, res) => {
@@ -12,7 +23,7 @@ const addCategory = async (req, res) => {
 
     const category = await Category.create({ name });
 
-    cache.del("categories");
+    clearCategoryCache();
 
     res.status(201).json(category);
   } catch (err) {
@@ -23,26 +34,65 @@ const addCategory = async (req, res) => {
 
 const getCategories = async (req, res) => {
   try {
+    // 🔹 Extract query params with defaults
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.query?.trim() || ""; // ✅ use "search" not "query"
+
+    console.log("Incoming query params:", req.query);
+
+    // 🔹 Calculate offset for pagination
+    const offset = (page - 1) * limit;
+
+    // 🔹 Generate cache key (based on page & search)
+    const cacheKey = `categories_${page}_${limit}_${search}`;
+
     // 1️⃣ Check cache
-    const cachedCategories = cache.get("categories");
+    const cachedCategories = cache.get(cacheKey);
     if (cachedCategories) {
       console.log("📦 Categories cache hit");
       return res.json(cachedCategories);
     }
 
-    // 2️⃣ Fetch from DB
-    const categories = await Category.findAll({ order: [["createdAt", "DESC"]] });
+    // 2️⃣ Build query filters
+    const whereClause = search
+      ? {
+        name: {
+          [Op.iLike]: `%${search}%`, // match substring
+        },
+      }
+      : {};
 
-    // 3️⃣ Save to cache
-    cache.set("categories", categories, 86400); // 24 hour TTL
+    // 3️⃣ Fetch from DB with pagination & search
+    const { count, rows: categories } = await Category.findAndCountAll({
+      where: whereClause,
+      order: [["createdAt", "DESC"]],
+      limit,
+      offset,
+    });
+
+    // 4️⃣ Prepare paginated response
+    const totalPages = Math.ceil(count / limit);
+    const response = {
+      currentPage: page,
+      totalPages,
+      totalItems: count,
+      limit,
+      data: categories,
+    };
+
+    // 5️⃣ Save to cache
+    cache.set(cacheKey, response, 86400); // 24 hours
     console.log("💾 Categories cache saved");
 
-    res.json(categories);
+    // 6️⃣ Send response
+    res.json(response);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 // Update category
 const updateCategory = async (req, res) => {
@@ -57,7 +107,7 @@ const updateCategory = async (req, res) => {
     category.name = name || category.name;
     await category.save();
 
-    cache.del("categories");
+    clearCategoryCache();
 
     res.json(category);
   } catch (err) {
@@ -75,7 +125,7 @@ const deleteCategory = async (req, res) => {
 
     await category.destroy();
 
-    cache.del("categories");
+    clearCategoryCache();
 
     res.json({ message: "Category deleted successfully" });
   } catch (err) {

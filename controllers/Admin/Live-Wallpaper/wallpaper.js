@@ -189,11 +189,7 @@ exports.getVideosByCategory = async (req, res) => {
 
 exports.searchVideos = async (req, res) => {
     try {
-        let { query, page = 1, limit = 20 } = req.query;
-
-        if (!query) {
-            return res.status(400).json({ message: "Search query is required" });
-        }
+        let { query = '', page = 1, limit = 20 } = req.query;
 
         page = parseInt(page);
         limit = parseInt(limit);
