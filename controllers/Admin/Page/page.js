@@ -1,6 +1,6 @@
 const { Page, Section, SectionItem, Media, App, sequelize } = require("../../../utils/db").loadModels();
 const { uploadToS3, deleteFromS3 } = require("../../../utils/uploadToS3");
-const { Op } = require("sequelize");
+const { Op, Sequelize } = require("sequelize");
 
 const getS3Key = (url) => {
     if (!url) return null;
@@ -177,65 +177,85 @@ exports.savePage = async (req, res) => {
     }
 };
 
-// Get Pages based on user permissions
 exports.getPages = async (req, res) => {
-    try {
-        const loggedInUser = req.user;
+  try {
+    const loggedInUser = req.user;
 
-        // Pagination parameters
-        const pageNumber = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const offset = (pageNumber - 1) * limit;
+    // 🔹 Pagination & search params
+    const pageNumber = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (pageNumber - 1) * limit;
+    const search = req.query.query?.trim() || "";
 
-        let whereClause = {};
+    // 🔹 Base filter
+    let whereClause = {};
 
-        // AppUser and AppAdmin can only see pages for allowed apps
-        if (loggedInUser.userType === "appUser" || loggedInUser.userType === "appAdmin") {
-            const allowedAppIds = loggedInUser.permissions.map(p => p.app.id);
-            if (allowedAppIds.length === 0) {
-                return res.json({ success: true, data: [], total: 0 });
-            }
-            whereClause.appId = { [Op.in]: allowedAppIds };
-        }
-
-        // Fetch pages with app info and total count
-        const { count, rows } = await Page.findAndCountAll({
-            where: whereClause,
-            attributes: ["id", "name", "slug", "tags", "appId"],
-            include: [
-                {
-                    model: App,
-                    as: "app",
-                    attributes: ["id", "name"]
-                }
-            ],
-            order: [["createdAt", "DESC"]],
-            limit,
-            offset
-        });
-
-        // Map response to include appName
-        const response = rows.map(p => ({
-            pageId: p.id,
-            name: p.name,
-            slug: p.slug,
-            tags: p.tags,
-            appId: p.appId,
-            appName: p.app ? p.app.name : null
-        }));
-
-        res.json({
-            success: true,
-            data: response,
-            total: count,
-            page: pageNumber,
-            limit
-        });
-    } catch (err) {
-        console.error("ERROR in getPages:", err);
-        res.status(500).json({ success: false, error: "Something went wrong", details: err.message });
+    // 🔹 Restrict based on user type
+    if (loggedInUser.userType === "appUser" || loggedInUser.userType === "appAdmin") {
+      const allowedAppIds = loggedInUser.permissions.map((p) => p.app.id);
+      if (allowedAppIds.length === 0) {
+        return res.json({ success: true, data: [], total: 0, page: pageNumber, limit });
+      }
+      whereClause.appId = { [Op.in]: allowedAppIds };
     }
+
+    // 🔹 Apply search filter (case-insensitive)
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { slug: { [Op.iLike]: `%${search}%` } },
+        Sequelize.literal(`CAST("tags" AS TEXT) ILIKE '%${search}%'`), 
+      ];
+    }
+
+    // 🔹 Fetch pages with pagination and app info
+    const { count, rows } = await Page.findAndCountAll({
+      where: whereClause,
+      attributes: ["id", "name", "slug", "tags", "appId"],
+      include: [
+        {
+          model: App,
+          as: "app",
+          attributes: ["id", "name"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+      limit,
+      offset,
+      distinct: true,
+    });
+
+    // 🔹 Format response
+    const formatted = rows.map((p) => ({
+      pageId: p.id,
+      name: p.name,
+      slug: p.slug,
+      tags: p.tags,
+      appId: p.appId,
+      appName: p.app ? p.app.name : null,
+    }));
+
+    // 🔹 Paginated response
+    const totalPages = Math.ceil(count / limit);
+
+    res.json({
+      success: true,
+      totalItems: count,
+      totalPages,
+      currentPage: pageNumber,
+      limit,
+      data: formatted,
+    });
+  } catch (err) {
+    console.error("❌ ERROR in getPages:", err);
+    res.status(500).json({
+      success: false,
+      error: "Something went wrong",
+      details: err.message,
+    });
+  }
 };
+
 
 exports.getPage = async (req, res) => {
     try {

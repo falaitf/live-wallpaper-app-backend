@@ -1,6 +1,7 @@
 const { Blog, BlogItem, App, sequelize } = require("../../../utils/db").loadModels();
 const { uploadToS3, deleteFromS3 } = require("../../../utils/uploadToS3");
 const { v4: uuidv4 } = require("uuid");
+const { Op } = require("sequelize");
 
 const getS3Key = (url) => {
     if (!url) return null;
@@ -125,66 +126,97 @@ exports.addBlogItem = async (req, res) => {
 };
 
 exports.getBlogs = async (req, res) => {
-    try {
-        const { appId } = req.query;
-        const loggedInUser = req.user;
+  try {
+    const { appId, query = "", page = 1, limit = 20 } = req.query;
+    const loggedInUser = req.user;
 
-        // ❌ AppUser not allowed
-        if (loggedInUser.userType === "appUser") {
-            return res.status(403).json({ success: false, error: "Not authorized" });
-        }
+    // Convert pagination to numbers
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+    const offset = (pageNum - 1) * limitNum;
 
-        // ✅ If appAdmin, restrict to their apps
-        const where = {};
-        if (appId) where.appId = appId;
-
-        if (loggedInUser.userType === "appAdmin") {
-            const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
-            if (appId && !adminAppIds.includes(appId)) {
-                return res.status(403).json({
-                    success: false,
-                    error: "Not authorized to view blogs for this app",
-                });
-            }
-            // restrict query to only apps admin has
-            where.appId = adminAppIds;
-        }
-
-        const blogs = await Blog.findAll({
-            where,
-            include: [
-                {
-                    model: App,
-                    attributes: ["id", "name", "slug"],
-                },
-                {
-                    model: BlogItem,
-                    attributes: ["id", "type", "value"],
-                },
-            ],
-            order: [["createdAt", "DESC"]],
-        });
-
-        // 🖼 Add proxy URL for image items (e.g., preview)
-        const blogsWithPreview = blogs.map((blog) => {
-            const json = blog.toJSON();
-
-            // transform BlogItems so image.value becomes proxy URL
-            const items = json.BlogItems
-
-            return {
-                ...json,
-                BlogItems: items,
-            };
-        });
-
-
-        res.json({ success: true, data: blogsWithPreview });
-    } catch (err) {
-        console.error("❌ Error fetching blogs:", err);
-        res.status(500).json({ success: false, error: "Failed to fetch blogs" });
+    // ❌ Block appUser
+    if (loggedInUser.userType === "appUser") {
+      return res.status(403).json({ success: false, error: "Not authorized" });
     }
+
+    // ✅ Build base filter
+    const where = {};
+
+    // ✅ Handle search (case-insensitive for Postgres)
+    if (query.trim()) {
+      where[Op.or] = [
+        { slug: { [Op.iLike]: `%${query}%` } },
+        { title: { [Op.iLike]: `%${query}%` } },
+      ];
+    }
+
+    // ✅ Restrict by appId and permissions
+    if (loggedInUser.userType === "appAdmin") {
+      const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
+
+      if (appId) {
+        // AppId provided — check access
+        if (!adminAppIds.includes(appId)) {
+          return res.status(403).json({
+            success: false,
+            error: "Not authorized to view blogs for this app",
+          });
+        }
+        where.appId = appId;
+      } else {
+        // Otherwise restrict to all admin apps
+        where.appId = adminAppIds;
+      }
+    } else if (appId) {
+      where.appId = appId;
+    }
+
+    // ✅ Fetch blogs with pagination
+    const { count, rows: blogs } = await Blog.findAndCountAll({
+      where,
+      include: [
+        {
+          model: App,
+          attributes: ["id", "name", "slug"],
+        },
+        {
+          model: BlogItem,
+          attributes: ["id", "type", "value"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+      limit: limitNum,
+      offset,
+      distinct: true,
+    });
+
+    // 🖼 Transform blogs
+    const blogsWithPreview = blogs.map((blog) => {
+      const json = blog.toJSON();
+      return {
+        ...json,
+        BlogItems: json.BlogItems || [],
+      };
+    });
+
+    // ✅ Paginated response
+    const totalPages = Math.ceil(count / limitNum);
+
+    res.json({
+      success: true,
+      currentPage: pageNum,
+      totalPages,
+      totalItems: count,
+      limit: limitNum,
+      data: blogsWithPreview,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching blogs:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch blogs" });
+  }
 };
+
 
 exports.getBlogWithItems = async (req, res) => {
     try {
