@@ -55,7 +55,6 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map(origin => origin.trim())
   : ["http://localhost:3000"]; // fallback default
@@ -63,21 +62,22 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
-
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
-      } else {
-        console.warn(`❌ CORS blocked for origin: ${origin}`);
-        return callback(new Error("Not allowed by CORS"));
       }
+      console.warn(`❌ CORS blocked for origin: ${origin}`);
+      return callback(new Error("Not allowed by CORS"));
     },
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+    exposedHeaders: ["Content-Disposition"], // optional if you serve file downloads
+    preflightContinue: false,
+    optionsSuccessStatus: 204, // avoid legacy browser CORS issues
   })
 );
+
 
 app.options('*', cors());
 
