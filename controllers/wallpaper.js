@@ -35,6 +35,7 @@ exports.getAllVideos = async (req, res) => {
             thumbnail: w.thumbnail ? w.thumbnail : null,
             gif: w.gif ? w.gif : null,
             type: w.type,
+            isPremium: w.isPremium
         }));
 
 
@@ -90,6 +91,7 @@ exports.getVideosByCategory = async (req, res) => {
             thumbnail: w.thumbnail ? w.thumbnail : null,
             gif: w.gif ? w.gif : null,
             type: w.type,
+            isPremium: w.isPremium
         }));
 
         const response = { page, limit, total: count, videos };
@@ -123,7 +125,7 @@ exports.getCategoriesWithWallpapers = async (req, res) => {
         {
           model: Wallpaper,
           as: "wallpapers",
-          attributes: ["id", "title", "url", "thumbnail", "gif", "type"],
+          attributes: ["id", "title", "url", "thumbnail", "gif", "type", "isPremium"],
         },
       ],
       distinct: true,
@@ -141,6 +143,7 @@ exports.getCategoriesWithWallpapers = async (req, res) => {
         thumbnail: w.thumbnail || null,
         gif: w.gif || null,
         type: w.type,
+        isPremium: w.isPremium
       })),
     }));
 
@@ -255,6 +258,7 @@ exports.searchVideos = async (req, res) => {
                 gif: w.gif ? w.gif : null,
                 type: w.type,
                 category: w.categories[0].name,
+                isPremium: w.isPremium
             })),
         });
     } catch (error) {

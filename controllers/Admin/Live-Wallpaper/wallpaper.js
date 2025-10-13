@@ -5,7 +5,7 @@ const cache = require("../../../utils/cache");
 
 exports.createWallpaper = async (req, res) => {
     try {
-        const { title, type, categoryIds } = req.body;
+        const { title, type, categoryIds, isPremium } = req.body;
         const { video, thumbnail, gif } = req.files || {};
 
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
@@ -34,6 +34,7 @@ exports.createWallpaper = async (req, res) => {
             thumbnail: getS3Key(thumbnailUrl),
             gif: getS3Key(gifUrl),
             type,
+            isPremium
         });
 
         // Handle categories (string from Postman needs parsing)
@@ -120,6 +121,7 @@ exports.getAllVideos = async (req, res) => {
             thumbnail: w.thumbnail ? w.thumbnail : null,
             gif: w.gif ? w.gif : null,
             type: w.type,
+            isPremium: w.isPremium
         }));
 
         const response = { page, limit, total: count, videos };
@@ -174,6 +176,7 @@ exports.getVideosByCategory = async (req, res) => {
             thumbnail: w.thumbnail ? w.thumbnail : null,
             gif: w.gif ? w.gif : null,
             type: w.type,
+            isPremium: w.isPremium
         }));
 
         const response = { page, limit, total: count, videos };
@@ -275,6 +278,7 @@ exports.searchVideos = async (req, res) => {
                 gif: w.gif ? w.gif : null,
                 type: w.type,
                 category: w.categories[0].name,
+                isPremium: w.isPremium
             })),
         });
     } catch (error) {
@@ -286,7 +290,7 @@ exports.searchVideos = async (req, res) => {
 exports.updateWallpaper = async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, type, categoryIds } = req.body;
+        const { title, type, categoryIds, isPremium } = req.body;
         const { video, thumbnail, gif } = req.files || {};
 
         // Find wallpaper
@@ -322,6 +326,7 @@ exports.updateWallpaper = async (req, res) => {
             url: videoUrl ? getS3Key(videoUrl) : wallpaper.url,
             thumbnail: thumbnailUrl ? getS3Key(thumbnailUrl) : wallpaper.thumbnail,
             gif: gifUrl ? getS3Key(gifUrl) : wallpaper.gif,
+            isPremium: isPremium || wallpaper.isPremium
         });
 
         // Update categories

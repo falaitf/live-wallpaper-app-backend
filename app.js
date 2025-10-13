@@ -88,8 +88,8 @@ app.use(
     const db = loadModels();
 
     // Sync models
-    await db.sequelize.sync({ alter: true });
-    console.log("📦 Models synchronized");
+    // await db.sequelize.sync({ alter: true });
+    // console.log("📦 Models synchronized");
 
     // (async () => {
     //   try {
@@ -106,7 +106,7 @@ app.use(
     // })();
 
     // Run seeding AFTER sync
-    await seedAppsAndPermissions(db);
+    // await seedAppsAndPermissions(db);
 
     // Start server
     app.listen(process.env.PORT, () => {
