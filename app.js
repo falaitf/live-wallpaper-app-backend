@@ -73,11 +73,16 @@ app.use(
         return callback(new Error("Not allowed by CORS"));
       }
     },
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
+
+app.options('*', cors());
+
+// Then serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 
 (async () => {
   try {
