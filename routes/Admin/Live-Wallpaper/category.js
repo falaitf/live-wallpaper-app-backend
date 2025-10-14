@@ -6,6 +6,7 @@ const authorizePermission = require("../../../middlewares/authorizePermission");
 
 router.post("/add", authenticateJWT, authorizePermission("categories.create"), Controller.addCategory);
 router.get("/get", authenticateJWT, authorizePermission("categories.view"), Controller.getCategories);
+router.get("/get/:id", authenticateJWT, authorizePermission("categories.view"), Controller.getCategoryById);
 router.put("/update/:id", authenticateJWT, authorizePermission("categories.update"), Controller.updateCategory);
 router.delete("/delete/:id", authenticateJWT, authorizePermission("categories.delete"), Controller.deleteCategory);
 

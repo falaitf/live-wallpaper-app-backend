@@ -87,7 +87,6 @@ const getS3Key = (url) => {
     return parts[1] || url;
 };
 
-
 exports.getAllVideos = async (req, res) => {
     try {
         let { page = 1, limit = 20 } = req.query;
@@ -135,6 +134,62 @@ exports.getAllVideos = async (req, res) => {
         res.status(500).json({ success: false, message: "Failed to fetch videos" });
     }
 };
+
+exports.getWallpaperById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch wallpaper by ID with categories
+        const wallpaper = await Wallpaper.findOne({
+            where: { id },
+            include: [
+                {
+                    model: Category,
+                    as: "categories",
+                    through: { attributes: [] },
+                    required: false, // LEFT JOIN
+                    attributes: ["id", "name"], // fetch only these fields
+                },
+            ],
+        });
+
+        if (!wallpaper) {
+            return res.status(404).json({
+                success: false,
+                message: "Wallpaper not found",
+            });
+        }
+
+        // Respond with wallpaper details
+        res.json({
+            success: true,
+            wallpaper: {
+                id: wallpaper.id,
+                title: wallpaper.title,
+                description: wallpaper.description || null,
+                url: wallpaper.url ? wallpaper.url : null,
+                thumbnail: wallpaper.thumbnail ? wallpaper.thumbnail : null,
+                gif: wallpaper.gif ? wallpaper.gif : null,
+                type: wallpaper.type,
+                status: wallpaper.status,
+                isPremium: wallpaper.isPremium,
+                categories: wallpaper.categories.map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                })),
+                createdAt: wallpaper.createdAt,
+                updatedAt: wallpaper.updatedAt,
+            },
+        });
+    } catch (error) {
+        console.error("❌ Error fetching wallpaper details:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching wallpaper details",
+        });
+    }
+};
+
 
 exports.getVideosByCategory = async (req, res) => {
     try {

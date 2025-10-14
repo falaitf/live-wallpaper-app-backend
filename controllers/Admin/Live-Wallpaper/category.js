@@ -93,6 +93,34 @@ const getCategories = async (req, res) => {
   }
 };
 
+const getCategoryById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch category by ID
+    const category = await Category.findOne({
+      where: { id },
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      category,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching category:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error fetching category",
+    });
+  }
+};
 
 // Update category
 const updateCategory = async (req, res) => {
@@ -139,4 +167,5 @@ module.exports = {
   getCategories,
   updateCategory,
   deleteCategory,
+  getCategoryById
 };

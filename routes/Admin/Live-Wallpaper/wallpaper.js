@@ -18,6 +18,8 @@ router.post(
 );
 router.get("/get", authenticateJWT,
   authorizePermission("wallpapers.view"), wallpaperController.searchVideos);
+  router.get("/get/:id", authenticateJWT,
+  authorizePermission("wallpapers.view"), wallpaperController.getWallpaperById);
 router.get("/category/:categoryName", authenticateJWT,
   authorizePermission("wallpapers.view"), wallpaperController.getVideosByCategory);
 router.get("/search", authenticateJWT,
