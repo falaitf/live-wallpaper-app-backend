@@ -23,7 +23,7 @@ const detectPlatform = (url) => {
     if (url.includes('twitter.com')) return 'twitter';
     if (url.includes('pinterest.com')) return 'pintrest';
     if (url.includes('linkedin.com')) return 'linkedin';
-    if (url.includes('vimeo.com')) return 'vimeo';
+    // if (url.includes('vimeo.com')) return 'vimeo';
     if (url.includes('snapchat.com')) return 'snapchat';
     return null;
 };
@@ -51,14 +51,14 @@ exports.downloadMedia = async (req, res) => {
 
         // Call selected API
         let response = await callDownloaderApi(url, useApi);
-        let normalizedResponse = normalizeResponse(response);
+        let normalizedResponse = normalizeResponse(response, useApi);
 
         // If first API failed, try the other one
         if (!normalizedResponse || normalizedResponse.media.length === 0) {
             const fallbackApi = useApi === 'allMediaDownloader' ? 'socialDownloader' : 'allMediaDownloader';
             console.log(`⚠️ First API failed — retrying with ${fallbackApi}`);
             response = await callDownloaderApi(url, fallbackApi);
-            normalizedResponse = normalizeResponse(response);
+            normalizedResponse = normalizeResponse(response, fallbackApi);
             useApi = fallbackApi;
         }
 
@@ -118,15 +118,31 @@ const callDownloaderApi = (url, apiType) => {
             res.on('data', chunk => chunks.push(chunk));
             res.on('end', () => {
                 const responseBody = Buffer.concat(chunks).toString();
+
+                // Check if HTML (common RapidAPI error)
+                if (responseBody.trim().startsWith('<!DOCTYPE html') || responseBody.trim().startsWith('<html')) {
+                    console.warn(`⚠️ ${apiType} returned HTML instead of JSON.`);
+                    return resolve({
+                        error: 'Invalid API response (HTML)',
+                        raw: responseBody
+                    });
+                }
+
                 try {
-                    resolve(JSON.parse(responseBody));
-                } catch {
+                    const parsed = JSON.parse(responseBody);
+                    resolve(parsed);
+                } catch (e) {
+                    console.warn(`⚠️ ${apiType} returned invalid JSON.`);
                     resolve({ raw: responseBody });
                 }
             });
         });
 
-        req.on('error', reject);
+        req.on('error', (err) => {
+            console.error(`❌ Request error from ${apiType}:`, err.message);
+            reject(err);
+        });
+
         req.write(body);
         req.end();
     });
@@ -135,53 +151,83 @@ const callDownloaderApi = (url, apiType) => {
 /**
  * ✅ Normalize responses into a unified structure
  */
-const normalizeResponse = (response) => {
+const normalizeResponse = (response, useApi) => {
     try {
         if (!response) return { status: 'failed', media: [], thumbnail: null };
 
         let thumbnail = null;
         let media = [];
 
-        console.log(response)
+        console.log(response);
 
-        // --- all-media-downloader typical ---
-        if (response.links || response.media) {
-            const items = response.links || response.media || [];
-            items.forEach(item => {
-                if (item.thumbnail) thumbnail = item.thumb;
+        // --- all-media-downloader updated ---
+        if (useApi === "allMediaDownloader") {
+            const formats = response.formats || [];
+            thumbnail = response.thumbnail || response.thumbnails?.[0]?.url || null;
+
+            const seenFormats = new Set();
+
+            for (const format of formats) {
+                if (!format.url || !format.vcodec || format.ext !== 'mp4') continue;
+
+                const resolution = format.resolution || "";
+                const height = parseInt(resolution.split("x")[1]) || 720;
+                const quality = height >= 1080 ? 1080 : 720;
+
+                // Only one entry per format (1080 or 720)
+                if (!seenFormats.has(quality)) {
+                    media.push({
+                        url: format.url,
+                        format: quality,
+                    });
+                    seenFormats.add(quality);
+                }
+            }
+
+            // fallback if no valid formats
+            if (media.length === 0 && response.url) {
                 media.push({
-                    url: item.url || item.link,
-                    format: item.type || item.ext || 'mp4',
-                    size: item.quality || item.resolution || null
+                    url: response.url,
+                    format: 720
                 });
-            });
+            }
+
             return { status: 'ok', thumbnail, media };
         }
 
         // --- social-download-all-in-one typical ---
-        if (response) {
+        if (useApi === "socialDownloader") {
             const items = Array.isArray(response.medias)
                 ? response.medias
                 : Array.isArray(response.data)
                     ? response.data
                     : [response.result || response.data];
 
-            if (response.thumbnail || response.thumb) thumbnail = response.thumbnail || response.thumb;
+            if (response.thumbnail || response.thumb)
+                thumbnail = response.thumbnail || response.thumb;
 
+            const seenFormats = new Set();
 
-            items.forEach(item => {
+            for (const item of items) {
                 if (item.type === 'video') {
-                    media.push({
-                        url: item.url || item.download_url || item.video || null,
-                        format: item.quality === 'hd_no_watermark' 
+                    let formatValue =
+                        item.quality === 'hd_no_watermark'
                             ? 1080
-                            : item.quality === 'no_watermark' || item.quality === "video mp4 720p" ||  item.quality === "720P mp4"
-                                ? 720
-                                : item.quality,
-                    });
-                }
-            });
+                            : item.quality === 'no_watermark' ||
+                              item.quality === 'video mp4 720p' ||
+                              item.quality === '720P mp4'
+                            ? 720
+                            : item.quality;
 
+                    if (!seenFormats.has(formatValue)) {
+                        media.push({
+                            url: item.url || item.download_url || item.video || null,
+                            format: formatValue,
+                        });
+                        seenFormats.add(formatValue);
+                    }
+                }
+            }
 
             return { status: 'ok', thumbnail, media };
         }
