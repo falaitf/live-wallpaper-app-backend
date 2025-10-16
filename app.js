@@ -47,6 +47,8 @@ var blogRouter = require('./routes/blog');
 var pagesRouter = require('./routes/pages');
 // FileProxy
 var fileProxyRouter = require('./routes/fileProxy');
+// VIdeo Downloader
+var videoDownloaderRouter = require('./routes/videoDownloader');
 
 
 var app = express();
@@ -93,8 +95,8 @@ app.use(express.static(path.join(__dirname, 'public')));
     const db = loadModels();
 
     // Sync models
-    await db.sequelize.sync({ alter: true });
-    console.log("📦 Models synchronized");
+    // await db.sequelize.sync({ alter: true });
+    // console.log("📦 Models synchronized");
 
     // (async () => {
     //   try {
@@ -111,7 +113,7 @@ app.use(express.static(path.join(__dirname, 'public')));
     // })();
 
     // Run seeding AFTER sync
-    await seedAppsAndPermissions(db);
+    // await seedAppsAndPermissions(db);
 
     // Start server
     app.listen(process.env.PORT, () => {
@@ -227,6 +229,8 @@ app.use('/api/v1/blog', blogRouter);
 app.use('/api/v1/page', pagesRouter);
 // fileproxy
 app.use('/api/v1/files', fileProxyRouter);
+// VIdeo Downloader
+app.use('/api/v1/video', videoDownloaderRouter);
 
 module.exports = app;
 
