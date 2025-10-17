@@ -47,22 +47,29 @@ exports.downloadMedia = async (req, res) => {
 
         if (platform === 'twitter' || platform === 'snapchat') {
             useApi = 'allMediaDownloader';
+        } else if (platform === 'pintrest' || platform === 'tiktok' || platform === 'linkedIn' || platform === 'instagram') {
+            useApi = 'socialDownloader';
         } else if (COMMON_APPS.includes(platform)) {
             loadCounter++;
             useApi = loadCounter % 4 === 0 ? 'socialDownloader' : 'allMediaDownloader';
-        } else if (ALL_MEDIA_APPS.includes(platform)) {
-            useApi = 'allMediaDownloader';
-        } else if (SOCIAL_DOWNLOADER_APPS.includes(platform)) {
-            useApi = 'socialDownloader';
         }
 
         // Call selected API
         let response = await callDownloaderApi(url, useApi);
         let normalizedResponse = normalizeResponse(response, useApi);
 
+        if (platform === 'instagram') {
+            console.log(response)
+        }
+
         // If first API failed, try the other one
         if (!normalizedResponse || normalizedResponse.media.length === 0) {
-            const fallbackApi = useApi === 'allMediaDownloader' ? 'socialDownloader' : 'allMediaDownloader';
+            var fallbackApi = useApi === 'allMediaDownloader' ? 'socialDownloader' : 'allMediaDownloader';
+            if (platform === 'twitter' || platform === 'snapchat') {
+                fallbackApi = 'allMediaDownloader';
+            } else if (platform === 'pintrest' || platform === 'tiktok' || platform === 'linkedIn' || platform === 'instagram') {
+                fallbackApi = 'socialDownloader';
+            }
             console.log(`⚠️ First API failed — retrying with ${fallbackApi}`);
             response = await callDownloaderApi(url, fallbackApi);
             normalizedResponse = normalizeResponse(response, fallbackApi);
