@@ -9,28 +9,32 @@ const SOCIAL_DOWNLOADER_ALL_IN_ONE_API = process.env.SOCIAL_DOWNLOADER_ALL_IN_ON
 
 let loadCounter = 0;
 
-const ALL_MEDIA_APPS = ['facebook', 'insta', 'tiktok', 'twitter', 'pintrest'];
-const SOCIAL_DOWNLOADER_APPS = ['facebook', 'insta', 'tiktok', 'linkedin', 'vimeo', 'snapchat', 'pintrest'];
-const COMMON_APPS = ['facebook', 'insta', 'tiktok', 'pintrest'];
+const ALL_MEDIA_APPS = ['facebook', 'insta', 'twitter', 'snapchat'];
+const SOCIAL_DOWNLOADER_APPS = ['facebook', 'insta', 'tiktok', 'linkedin', 'pintrest'];
+const COMMON_APPS = ['facebook', 'insta'];
 
-/**
- * Detect platform name from URL
- */
 const detectPlatform = (url) => {
-    if (url.includes('facebook.com')) return 'facebook';
-    if (url.includes('instagram.com')) return 'insta';
-    if (url.includes('tiktok.com')) return 'tiktok';
-    if (url.includes('twitter.com')) return 'twitter';
-    if (url.includes('pinterest.com')) return 'pintrest';
-    if (url.includes('linkedin.com')) return 'linkedin';
-    // if (url.includes('vimeo.com')) return 'vimeo';
-    if (url.includes('snapchat.com')) return 'snapchat';
+    if (!url) return null;
+    const lowerUrl = url.toLowerCase();
+
+    if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch'))
+        return 'facebook';
+    if (lowerUrl.includes('instagram.com'))
+        return 'instagram';
+    if (lowerUrl.includes('tiktok.com'))
+        return 'tiktok';
+    if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com'))
+        return 'twitter';
+    if (lowerUrl.includes('pinterest.com') || lowerUrl.includes('pin.it'))
+        return 'pintrest';
+    if (lowerUrl.includes('linkedin.com'))
+        return 'linkedin';
+    if (lowerUrl.includes('snapchat.com'))
+        return 'snapchat';
+
     return null;
 };
 
-/**
- * Main Controller
- */
 exports.downloadMedia = async (req, res) => {
     try {
         const { url } = req.query;
@@ -41,10 +45,13 @@ exports.downloadMedia = async (req, res) => {
 
         let useApi = 'allMediaDownloader';
 
-        // Load balancing for common apps (3 requests to first API, 1 to second)
-        if (COMMON_APPS.includes(platform)) {
+        if (platform === 'twitter' || platform === 'snapchat') {
+            useApi = 'allMediaDownloader';
+        } else if (COMMON_APPS.includes(platform)) {
             loadCounter++;
-            if (loadCounter % 4 === 0) useApi = 'socialDownloader';
+            useApi = loadCounter % 4 === 0 ? 'socialDownloader' : 'allMediaDownloader';
+        } else if (ALL_MEDIA_APPS.includes(platform)) {
+            useApi = 'allMediaDownloader';
         } else if (SOCIAL_DOWNLOADER_APPS.includes(platform)) {
             useApi = 'socialDownloader';
         }
@@ -158,8 +165,6 @@ const normalizeResponse = (response, useApi) => {
         let thumbnail = null;
         let media = [];
 
-        console.log(response);
-
         // --- all-media-downloader updated ---
         if (useApi === "allMediaDownloader") {
             const formats = response.formats || [];
@@ -214,10 +219,10 @@ const normalizeResponse = (response, useApi) => {
                         item.quality === 'hd_no_watermark'
                             ? 1080
                             : item.quality === 'no_watermark' ||
-                              item.quality === 'video mp4 720p' ||
-                              item.quality === '720P mp4'
-                            ? 720
-                            : item.quality;
+                                item.quality === 'video mp4 720p' ||
+                                item.quality === '720P mp4'
+                                ? 720
+                                : item.quality;
 
                     if (!seenFormats.has(formatValue)) {
                         media.push({
