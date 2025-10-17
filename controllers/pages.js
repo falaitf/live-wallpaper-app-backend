@@ -65,3 +65,79 @@ exports.getPage = async (req, res) => {
         res.status(500).json({ success: false, error: "Something went wrong", details: err.message });
     }
 };
+
+exports.getAppPages = async (req, res) => {
+  try {
+    const { slug } = req.params; // app can be identified by slug or appId
+    let { page = 1, limit = 20 } = req.query;
+
+    // Convert pagination params
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+    const offset = (page - 1) * limit;
+
+    // Ensure at least one identifier
+    if (!slug) {
+      return res.status(400).json({ success: false, error: "App slug is required" });
+    }
+
+    // Find the app
+    const app = await App.findOne({
+  where: { slug },
+  attributes: ["id", "name", "slug"],
+});
+
+    if (!app) {
+      return res.status(404).json({ success: false, error: "App not found" });
+    }
+
+    // Fetch all pages of the app with pagination
+    const { count, rows: pages } = await Page.findAndCountAll({
+      where: { appId: app.id },
+      distinct: true,
+      attributes: ["id", "name", "slug", "tags", "createdAt"],
+    //   include: [
+    //     {
+    //       model: Section,
+    //       as: "sections",
+    //       include: [
+    //         { model: Media, as: "media" },
+    //         {
+    //           model: SectionItem,
+    //           as: "items",
+    //           include: [{ model: Media, as: "media" }],
+    //         },
+    //       ],
+    //     },
+    //   ],
+      limit,
+      offset,
+      order: [
+        ["createdAt", "DESC"],
+        // [{ model: Section, as: "sections" }, "createdAt", "ASC"],
+        // [{ model: Section, as: "sections" }, { model: SectionItem, as: "items" }, "createdAt", "ASC"],
+      ],
+    });
+
+    res.json({
+      success: true,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit),
+      },
+      data: {
+        app: {
+          id: app.id,
+          name: app.name,
+          slug: app.slug,
+        },
+        pages,
+      },
+    });
+  } catch (err) {
+    console.error("ERROR in getAppPages:", err);
+    res.status(500).json({ success: false, error: "Something went wrong", details: err.message });
+  }
+};
