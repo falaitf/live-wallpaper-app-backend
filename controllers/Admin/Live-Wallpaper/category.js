@@ -5,7 +5,7 @@ const { Op } = require("sequelize");
 function clearCategoryCache() {
   const keys = cache.keys();
   keys.forEach((key) => {
-    if (key.startsWith("categories_")) {
+    if (key.startsWith("categories")) {
       cache.del(key);
     }
   });
