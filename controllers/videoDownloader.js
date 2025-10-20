@@ -229,7 +229,7 @@ const normalizeResponse = (response, useApi) => {
                                 item.quality === 'video mp4 720p' ||
                                 item.quality === '720P mp4'
                                 ? 720
-                                : item.quality;
+                                : 720;
 
                     if (!seenFormats.has(formatValue)) {
                         media.push({
