@@ -102,6 +102,12 @@ const getCategories = async (req, res) => {
 const getCategoryById = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || isNaN(id) || parseInt(id) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ID. It must be a positive integer.",
+      });
+    }
 
     // Fetch category by ID
     const category = await Category.findOne({
@@ -134,6 +140,14 @@ const updateCategory = async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
 
+    if (!id || isNaN(id) || parseInt(id) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ID. It must be a positive integer.",
+      });
+    }
+
+
     const category = await Category.findByPk(id);
     if (!category) return res.status(404).json({ error: "Category not found" });
     if (!name) return res.status(400).json({ error: "Category name is required" });
@@ -155,6 +169,14 @@ const deleteCategory = async (req, res) => {
 
   try {
     const { id } = req.params;
+
+    if (!id || isNaN(id) || parseInt(id) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ID. It must be a positive integer.",
+      });
+    }
+
 
     // 🟩 Step 1: Find the category
     const category = await Category.findByPk(id, { transaction });

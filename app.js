@@ -55,7 +55,7 @@ var app = express();
 app.set("trust proxy", true);
 app.use(logger('dev'));
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map(origin => origin.trim())
@@ -95,8 +95,8 @@ app.use(express.static(path.join(__dirname, 'public')));
     const db = loadModels();
 
     // Sync models
-    await db.sequelize.sync({ alter: true });
-    console.log("📦 Models synchronized");
+    // await db.sequelize.sync({ alter: true });
+    // console.log("📦 Models synchronized");
 
     // (async () => {
     //   try {
@@ -113,7 +113,7 @@ app.use(express.static(path.join(__dirname, 'public')));
     // })();
 
     // Run seeding AFTER sync
-    await seedAppsAndPermissions(db);
+    // await seedAppsAndPermissions(db);
 
     // Start server
     app.listen(process.env.PORT, () => {

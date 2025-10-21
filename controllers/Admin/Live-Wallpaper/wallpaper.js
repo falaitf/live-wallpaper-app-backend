@@ -175,6 +175,13 @@ exports.getWallpaperById = async (req, res) => {
     try {
         const { id } = req.params;
 
+        if (!id || isNaN(id) || parseInt(id) <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid wallpaper ID. It must be a positive integer.",
+            });
+        }
+
         // Fetch wallpaper by ID with categories
         const wallpaper = await Wallpaper.findOne({
             where: { id },
@@ -368,7 +375,7 @@ exports.searchVideos = async (req, res) => {
                 thumbnail: w.thumbnail ? w.thumbnail : null,
                 gif: w.gif ? w.gif : null,
                 type: w.type,
-                category: w.categories?.[0]?.name || null, 
+                category: w.categories?.[0]?.name || null,
                 isPremium: w.isPremium
             })),
         });
@@ -379,80 +386,117 @@ exports.searchVideos = async (req, res) => {
 };
 
 exports.updateWallpaper = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { title, type, categoryIds, isPremium } = req.body;
-        const { video, thumbnail, gif } = req.files || {};
+  const transaction = await sequelize.transaction(); // 🟩 Start transaction
+  try {
+    const { id } = req.params;
+    const { title, type, categoryIds, isPremium } = req.body;
+    const { video, thumbnail, gif } = req.files || {};
 
-        // Find wallpaper
-        const wallpaper = await Wallpaper.findByPk(id);
-        if (!wallpaper) {
-            return res.status(404).json({ success: false, message: "Wallpaper not found" });
-        }
-
-        // Handle file uploads
-        const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
-        const thumbnailFile = thumbnail ? (Array.isArray(thumbnail) ? thumbnail[0] : thumbnail) : null;
-        const gifFile = gif ? (Array.isArray(gif) ? gif[0] : gif) : null;
-
-        if (videoFile && videoFile.size > 10 * 1024 * 1024) {
-            return res.status(400).json({ success: false, message: "Video exceeds 10MB limit" });
-        }
-        if (thumbnailFile && thumbnailFile.size > 10 * 1024 * 1024) {
-            return res.status(400).json({ success: false, message: "Thumbnail exceeds 10MB limit" });
-        }
-        if (gifFile && gifFile.size > 10 * 1024 * 1024) {
-            return res.status(400).json({ success: false, message: "Gif exceeds 10MB limit" });
-        }
-
-        // Upload new files to S3 if provided
-        const videoUrl = videoFile ? await uploadToS3(videoFile, "videos") : null;
-        const thumbnailUrl = thumbnailFile ? await uploadToS3(thumbnailFile, "thumbnails") : null;
-        const gifUrl = gifFile ? await uploadToS3(gifFile, "gifs") : null;
-
-        // Update wallpaper fields
-        await wallpaper.update({
-            title: title || wallpaper.title,
-            type: type || wallpaper.type,
-            url: videoUrl ? getS3Key(videoUrl) : wallpaper.url,
-            thumbnail: thumbnailUrl ? getS3Key(thumbnailUrl) : wallpaper.thumbnail,
-            gif: gifUrl ? getS3Key(gifUrl) : wallpaper.gif,
-            isPremium: isPremium || wallpaper.isPremium
-        });
-
-        // Update categories
-        if (categoryIds) {
-            let parsedIds = categoryIds;
-            if (typeof categoryIds === "string") {
-                try {
-                    parsedIds = JSON.parse(categoryIds);
-                } catch (e) {
-                    parsedIds = [categoryIds];
-                }
-            }
-            if (!Array.isArray(parsedIds)) {
-                parsedIds = [parsedIds];
-            }
-            await wallpaper.setCategories(parsedIds);
-        }
-
-        // Fetch updated wallpaper with categories
-        const result = await Wallpaper.findByPk(id, {
-            include: [{ model: Category, as: "categories" }],
-        });
-
-        clearCacheExceptCategories();
-
-        res.status(200).json({ success: true, data: result });
-    } catch (error) {
-        console.error("❌ Error updating wallpaper:", error);
-        res.status(500).json({ success: false, message: "Failed to update wallpaper" });
+    // 🟩 Validate ID
+    if (!id || isNaN(id) || parseInt(id) <= 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Invalid wallpaper ID. It must be a positive integer.",
+      });
     }
+
+    const wallpaper = await Wallpaper.findByPk(id, { transaction });
+    if (!wallpaper) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: "Wallpaper not found" });
+    }
+
+    // 🟩 Handle file uploads
+    const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
+    const thumbnailFile = thumbnail ? (Array.isArray(thumbnail) ? thumbnail[0] : thumbnail) : null;
+    const gifFile = gif ? (Array.isArray(gif) ? gif[0] : gif) : null;
+
+    const maxSize = 10 * 1024 * 1024;
+    if (videoFile && videoFile.size > maxSize)
+      return res.status(400).json({ success: false, message: "Video exceeds 10MB limit" });
+    if (thumbnailFile && thumbnailFile.size > maxSize)
+      return res.status(400).json({ success: false, message: "Thumbnail exceeds 10MB limit" });
+    if (gifFile && gifFile.size > maxSize)
+      return res.status(400).json({ success: false, message: "GIF exceeds 10MB limit" });
+
+    // 🟩 Upload to S3 if new files provided
+    const videoUrl = videoFile ? await uploadToS3(videoFile, "videos") : null;
+    const thumbnailUrl = thumbnailFile ? await uploadToS3(thumbnailFile, "thumbnails") : null;
+    const gifUrl = gifFile ? await uploadToS3(gifFile, "gifs") : null;
+
+    // 🟩 Update wallpaper fields
+    await wallpaper.update(
+      {
+        title: title || wallpaper.title,
+        type: type || wallpaper.type,
+        url: videoUrl ? getS3Key(videoUrl) : wallpaper.url,
+        thumbnail: thumbnailUrl ? getS3Key(thumbnailUrl) : wallpaper.thumbnail,
+        gif: gifUrl ? getS3Key(gifUrl) : wallpaper.gif,
+        isPremium:
+          typeof isPremium !== "undefined" ? isPremium : wallpaper.isPremium,
+      },
+      { transaction }
+    );
+
+    // 🟩 Update categories (if provided)
+    if (categoryIds) {
+      let parsedIds = categoryIds;
+      if (typeof categoryIds === "string") {
+        try {
+          parsedIds = JSON.parse(categoryIds);
+        } catch {
+          parsedIds = [categoryIds];
+        }
+      }
+      if (!Array.isArray(parsedIds)) parsedIds = [parsedIds];
+
+      // Validate category existence
+      const categories = await Category.findAll({
+        where: { id: { [Op.in]: parsedIds } },
+        transaction,
+      });
+
+      if (categories.length !== parsedIds.length) {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: "One or more provided categories do not exist",
+        });
+      }
+
+      await wallpaper.setCategories(parsedIds, { transaction });
+    }
+
+    // 🟩 Commit transaction
+    await transaction.commit();
+
+    // 🟩 Fetch updated wallpaper with categories
+    const result = await Wallpaper.findByPk(id, {
+      include: [{ model: Category, as: "categories" }],
+    });
+
+    clearCacheExceptCategories();
+
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error("❌ Error updating wallpaper:", error);
+    await transaction.rollback();
+    res.status(500).json({ success: false, message: "Failed to update wallpaper" });
+  }
 };
+
 
 exports.deleteWallpaper = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!id || isNaN(id) || parseInt(id) <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid wallpaper ID. It must be a positive integer.",
+            });
+        }
 
         const wallpaper = await Wallpaper.findByPk(id);
         if (!wallpaper) {
