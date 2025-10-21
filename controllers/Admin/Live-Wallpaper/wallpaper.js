@@ -447,6 +447,9 @@ exports.updateWallpaper = async (req, res) => {
         const { title, type, categoryIds, isPremium } = req.body;
         const { video, thumbnail, gif } = req.files || {};
 
+        const updatedData = {};
+
+        // 🟩 Validate title if provided
         if (title !== undefined) {
             const alphaRegex = /^[A-Za-z\s]+$/;
             if (!alphaRegex.test(title)) {
@@ -456,7 +459,7 @@ exports.updateWallpaper = async (req, res) => {
                     message: "Title must contain only alphabetic characters and spaces",
                 });
             }
-            updatedData.title = title;
+            updatedData.title = title.trim();
         }
 
         // 🟩 Validate ID
@@ -474,12 +477,12 @@ exports.updateWallpaper = async (req, res) => {
             return res.status(404).json({ success: false, message: "Wallpaper not found" });
         }
 
-        // 🟩 Extract uploaded files (if provided)
+        // 🟩 Extract uploaded files
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
         const thumbnailFile = thumbnail ? (Array.isArray(thumbnail) ? thumbnail[0] : thumbnail) : null;
         const gifFile = gif ? (Array.isArray(gif) ? gif[0] : gif) : null;
 
-        // 🟩 Step 3: Validate file types (only if file exists)
+        // 🟩 Validate file types
         if (videoFile && !videoFile.mimetype.startsWith("video/")) {
             await transaction.rollback();
             return res.status(400).json({
@@ -505,7 +508,7 @@ exports.updateWallpaper = async (req, res) => {
             });
         }
 
-        // 🟩 Step 4: Validate file sizes (only if file exists)
+        // 🟩 Validate file sizes
         const maxVideoSize = 20 * 1024 * 1024; // 20 MB
         const maxImageSize = 3 * 1024 * 1024;  // 3 MB
 
@@ -533,25 +536,21 @@ exports.updateWallpaper = async (req, res) => {
             });
         }
 
-        // 🟩 Step 5: Upload to S3 only if new files provided
+        // 🟩 Upload new files (if any)
         const videoUrl = videoFile ? await uploadToS3(videoFile, "videos") : null;
         const thumbnailUrl = thumbnailFile ? await uploadToS3(thumbnailFile, "thumbnails") : null;
         const gifUrl = gifFile ? await uploadToS3(gifFile, "gifs") : null;
 
-        // 🟩 Step 6: Update wallpaper
-        await wallpaper.update(
-            {
-                ...(title && { title }),
-                ...(type && { type }),
-                ...(videoUrl && { url: getS3Key(videoUrl) }),
-                ...(thumbnailUrl && { thumbnail: getS3Key(thumbnailUrl) }),
-                ...(gifUrl && { gif: getS3Key(gifUrl) }),
-                ...(typeof isPremium !== "undefined" && { isPremium }),
-            },
-            { transaction }
-        );
+        // 🟩 Update fields only if provided
+        if (type) updatedData.type = type;
+        if (videoUrl) updatedData.url = getS3Key(videoUrl);
+        if (thumbnailUrl) updatedData.thumbnail = getS3Key(thumbnailUrl);
+        if (gifUrl) updatedData.gif = getS3Key(gifUrl);
+        if (typeof isPremium !== "undefined") updatedData.isPremium = isPremium;
 
-        // 🟩 Step 7: Update categories if provided
+        await wallpaper.update(updatedData, { transaction });
+
+        // 🟩 Update categories (if provided)
         if (categoryIds) {
             let parsedIds = categoryIds;
             if (typeof categoryIds === "string") {
@@ -579,7 +578,7 @@ exports.updateWallpaper = async (req, res) => {
             await wallpaper.setCategories(parsedIds, { transaction });
         }
 
-        // 🟩 Step 8: Commit and return updated record
+        // 🟩 Commit and respond
         await transaction.commit();
 
         const result = await Wallpaper.findByPk(id, {
@@ -588,13 +587,14 @@ exports.updateWallpaper = async (req, res) => {
 
         clearCacheExceptCategories();
 
-        res.status(200).json({ success: true, data: result });
+        return res.status(200).json({ success: true, data: result });
     } catch (error) {
         console.error("❌ Error updating wallpaper:", error);
         await transaction.rollback();
-        res.status(500).json({ success: false, message: "Failed to update wallpaper" });
+        return res.status(500).json({ success: false, message: "Failed to update wallpaper" });
     }
 };
+
 
 
 
