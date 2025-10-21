@@ -459,7 +459,7 @@ exports.updateWallpaper = async (req, res) => {
                     message: "Title must contain only alphabetic characters and spaces",
                 });
             }
-            updatedData.title = title.trim();
+            updatedData.title = title;
         }
 
         // 🟩 Validate ID
