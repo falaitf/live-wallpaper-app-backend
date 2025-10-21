@@ -368,7 +368,7 @@ exports.searchVideos = async (req, res) => {
                 thumbnail: w.thumbnail ? w.thumbnail : null,
                 gif: w.gif ? w.gif : null,
                 type: w.type,
-                category: w.categories[0].name,
+                category: w.categories?.[0]?.name || null, 
                 isPremium: w.isPremium
             })),
         });
