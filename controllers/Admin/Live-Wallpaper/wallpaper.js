@@ -457,6 +457,7 @@ exports.updateWallpaper = async (req, res) => {
                 });
             }
             updatedData.title = title;
+            
         }
 
         // 🟩 Validate ID
