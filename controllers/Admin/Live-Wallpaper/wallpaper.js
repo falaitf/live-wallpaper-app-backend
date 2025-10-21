@@ -17,6 +17,15 @@ exports.createWallpaper = async (req, res) => {
                 .json({ success: false, message: "Title, type, and categoryIds are required" });
         }
 
+        const alphaRegex = /^[A-Za-z\s]+$/;
+        if (!alphaRegex.test(title)) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Title must contain only alphabetic characters and spaces",
+            });
+        }
+
         // 🟩 Step 2: Handle uploaded files
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
         const thumbnailFile = thumbnail ? (Array.isArray(thumbnail) ? thumbnail[0] : thumbnail) : null;
@@ -55,14 +64,34 @@ exports.createWallpaper = async (req, res) => {
             });
         }
 
-        // 🟩 Step 3: Validate file sizes (max 10MB)
-        const maxSize = 10 * 1024 * 1024;
-        if (videoFile.size > maxSize)
-            return res.status(400).json({ success: false, message: "Video exceeds 10MB limit" });
-        if (thumbnailFile.size > maxSize)
-            return res.status(400).json({ success: false, message: "Thumbnail exceeds 10MB limit" });
-        if (gifFile && gifFile.size > maxSize)
-            return res.status(400).json({ success: false, message: "GIF exceeds 10MB limit" });
+        // 🟩 Step 4: Validate file sizes
+        const maxVideoSize = 20 * 1024 * 1024;     // 20 MB
+        const maxImageSize = 3 * 1024 * 1024;      // 3 MB (for thumbnail & GIF)
+
+        if (videoFile.size > maxVideoSize) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Video exceeds 20MB limit",
+            });
+        }
+
+        if (thumbnailFile.size > maxImageSize) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Thumbnail exceeds 3MB limit",
+            });
+        }
+
+        if (gifFile && gifFile.size > maxImageSize) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "GIF exceeds 3MB limit",
+            });
+        }
+
 
         // 🟩 Step 4: Parse categoryIds
         let parsedIds = categoryIds;
@@ -412,11 +441,23 @@ exports.searchVideos = async (req, res) => {
 };
 
 exports.updateWallpaper = async (req, res) => {
-    const transaction = await sequelize.transaction(); // 🟩 Start transaction
+    const transaction = await sequelize.transaction();
     try {
         const { id } = req.params;
         const { title, type, categoryIds, isPremium } = req.body;
         const { video, thumbnail, gif } = req.files || {};
+
+        if (title !== undefined) {
+            const alphaRegex = /^[A-Za-z\s]+$/;
+            if (!alphaRegex.test(title)) {
+                await transaction.rollback();
+                return res.status(400).json({
+                    success: false,
+                    message: "Title must contain only alphabetic characters and spaces",
+                });
+            }
+            updatedData.title = title;
+        }
 
         // 🟩 Validate ID
         if (!id || isNaN(id) || parseInt(id) <= 0) {
@@ -433,13 +474,13 @@ exports.updateWallpaper = async (req, res) => {
             return res.status(404).json({ success: false, message: "Wallpaper not found" });
         }
 
-        // 🟩 Handle file uploads
+        // 🟩 Extract uploaded files (if provided)
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
         const thumbnailFile = thumbnail ? (Array.isArray(thumbnail) ? thumbnail[0] : thumbnail) : null;
         const gifFile = gif ? (Array.isArray(gif) ? gif[0] : gif) : null;
 
-        // 🟩 Step 3: Validate file types
-        if (!videoFile.mimetype.startsWith("video/")) {
+        // 🟩 Step 3: Validate file types (only if file exists)
+        if (videoFile && !videoFile.mimetype.startsWith("video/")) {
             await transaction.rollback();
             return res.status(400).json({
                 success: false,
@@ -448,7 +489,7 @@ exports.updateWallpaper = async (req, res) => {
         }
 
         const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
-        if (!allowedImageTypes.includes(thumbnailFile.mimetype)) {
+        if (thumbnailFile && !allowedImageTypes.includes(thumbnailFile.mimetype)) {
             await transaction.rollback();
             return res.status(400).json({
                 success: false,
@@ -464,34 +505,53 @@ exports.updateWallpaper = async (req, res) => {
             });
         }
 
-        const maxSize = 10 * 1024 * 1024;
-        if (videoFile && videoFile.size > maxSize)
-            return res.status(400).json({ success: false, message: "Video exceeds 10MB limit" });
-        if (thumbnailFile && thumbnailFile.size > maxSize)
-            return res.status(400).json({ success: false, message: "Thumbnail exceeds 10MB limit" });
-        if (gifFile && gifFile.size > maxSize)
-            return res.status(400).json({ success: false, message: "GIF exceeds 10MB limit" });
+        // 🟩 Step 4: Validate file sizes (only if file exists)
+        const maxVideoSize = 20 * 1024 * 1024; // 20 MB
+        const maxImageSize = 3 * 1024 * 1024;  // 3 MB
 
-        // 🟩 Upload to S3 if new files provided
+        if (videoFile && videoFile.size > maxVideoSize) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Video exceeds 20MB limit",
+            });
+        }
+
+        if (thumbnailFile && thumbnailFile.size > maxImageSize) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Thumbnail exceeds 3MB limit",
+            });
+        }
+
+        if (gifFile && gifFile.size > maxImageSize) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "GIF exceeds 3MB limit",
+            });
+        }
+
+        // 🟩 Step 5: Upload to S3 only if new files provided
         const videoUrl = videoFile ? await uploadToS3(videoFile, "videos") : null;
         const thumbnailUrl = thumbnailFile ? await uploadToS3(thumbnailFile, "thumbnails") : null;
         const gifUrl = gifFile ? await uploadToS3(gifFile, "gifs") : null;
 
-        // 🟩 Update wallpaper fields
+        // 🟩 Step 6: Update wallpaper
         await wallpaper.update(
             {
-                title: title || wallpaper.title,
-                type: type || wallpaper.type,
-                url: videoUrl ? getS3Key(videoUrl) : wallpaper.url,
-                thumbnail: thumbnailUrl ? getS3Key(thumbnailUrl) : wallpaper.thumbnail,
-                gif: gifUrl ? getS3Key(gifUrl) : wallpaper.gif,
-                isPremium:
-                    typeof isPremium !== "undefined" ? isPremium : wallpaper.isPremium,
+                ...(title && { title }),
+                ...(type && { type }),
+                ...(videoUrl && { url: getS3Key(videoUrl) }),
+                ...(thumbnailUrl && { thumbnail: getS3Key(thumbnailUrl) }),
+                ...(gifUrl && { gif: getS3Key(gifUrl) }),
+                ...(typeof isPremium !== "undefined" && { isPremium }),
             },
             { transaction }
         );
 
-        // 🟩 Update categories (if provided)
+        // 🟩 Step 7: Update categories if provided
         if (categoryIds) {
             let parsedIds = categoryIds;
             if (typeof categoryIds === "string") {
@@ -503,7 +563,6 @@ exports.updateWallpaper = async (req, res) => {
             }
             if (!Array.isArray(parsedIds)) parsedIds = [parsedIds];
 
-            // Validate category existence
             const categories = await Category.findAll({
                 where: { id: { [Op.in]: parsedIds } },
                 transaction,
@@ -520,10 +579,9 @@ exports.updateWallpaper = async (req, res) => {
             await wallpaper.setCategories(parsedIds, { transaction });
         }
 
-        // 🟩 Commit transaction
+        // 🟩 Step 8: Commit and return updated record
         await transaction.commit();
 
-        // 🟩 Fetch updated wallpaper with categories
         const result = await Wallpaper.findByPk(id, {
             include: [{ model: Category, as: "categories" }],
         });
@@ -537,6 +595,7 @@ exports.updateWallpaper = async (req, res) => {
         res.status(500).json({ success: false, message: "Failed to update wallpaper" });
     }
 };
+
 
 
 exports.deleteWallpaper = async (req, res) => {

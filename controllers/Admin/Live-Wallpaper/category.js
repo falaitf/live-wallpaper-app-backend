@@ -23,6 +23,13 @@ const addCategory = async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: "Category name is required" });
+    const alphaRegex = /^[A-Za-z\s]+$/;
+    if (!alphaRegex.test(name)) {
+      return res.status(400).json({
+        success: false,
+        message: "Name must contain only alphabetic characters and spaces",
+      });
+    }
 
     const existing = await Category.findOne({ where: { name } });
     if (existing) return res.status(400).json({ error: "Category already exists" });
@@ -139,6 +146,14 @@ const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
     const { name } = req.body;
+
+    const alphaRegex = /^[A-Za-z\s]+$/;
+    if (!alphaRegex.test(name)) {
+      return res.status(400).json({
+        success: false,
+        message: "Name must contain only alphabetic characters and spaces",
+      });
+    }
 
     if (!id || isNaN(id) || parseInt(id) <= 0) {
       return res.status(400).json({

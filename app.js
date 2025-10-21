@@ -92,11 +92,11 @@ app.use(express.static(path.join(__dirname, 'public')));
     await connectDB();
 
     // Load models
-    const db = loadModels();
+    // const db = loadModels();
 
     // Sync models
-    await db.sequelize.sync({ alter: true });
-    console.log("📦 Models synchronized");
+    // await db.sequelize.sync({ alter: true });
+    // console.log("📦 Models synchronized");
 
     // (async () => {
     //   try {
@@ -113,7 +113,7 @@ app.use(express.static(path.join(__dirname, 'public')));
     // })();
 
     // Run seeding AFTER sync
-    await seedAppsAndPermissions(db);
+    // await seedAppsAndPermissions(db);
 
     // Start server
     app.listen(process.env.PORT, () => {
