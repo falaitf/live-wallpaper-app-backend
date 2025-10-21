@@ -1,73 +1,104 @@
-const { Wallpaper, Category } = require("../../../utils/db").loadModels();
+const { Wallpaper, Category, sequelize } = require("../../../utils/db").loadModels();
 const { uploadToS3, deleteFromS3 } = require("../../../utils/uploadToS3");
 const { Op, Sequelize } = require("sequelize");
 const cache = require("../../../utils/cache");
 
 exports.createWallpaper = async (req, res) => {
+    const transaction = await sequelize.transaction();
     try {
         const { title, type, categoryIds, isPremium } = req.body;
         const { video, thumbnail, gif } = req.files || {};
 
+        // 🟩 Step 1: Validate required fields
+        if (!title || !type || !categoryIds) {
+            await transaction.rollback();
+            return res
+                .status(400)
+                .json({ success: false, message: "Title, type, and categoryIds are required" });
+        }
+
+        // 🟩 Step 2: Handle uploaded files
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
         const thumbnailFile = thumbnail ? (Array.isArray(thumbnail) ? thumbnail[0] : thumbnail) : null;
         const gifFile = gif ? (Array.isArray(gif) ? gif[0] : gif) : null;
 
-        if (videoFile && videoFile.size > 10 * 1024 * 1024) {
+        if (!videoFile || !thumbnailFile) {
+            await transaction.rollback();
+            return res
+                .status(400)
+                .json({ success: false, message: "Video and thumbnail are required" });
+        }
+
+        // 🟩 Step 3: Validate file sizes (max 10MB)
+        const maxSize = 10 * 1024 * 1024;
+        if (videoFile.size > maxSize)
             return res.status(400).json({ success: false, message: "Video exceeds 10MB limit" });
-        }
-        if (thumbnailFile && thumbnailFile.size > 10 * 1024 * 1024) {
+        if (thumbnailFile.size > maxSize)
             return res.status(400).json({ success: false, message: "Thumbnail exceeds 10MB limit" });
-        }
-        if (gifFile && gifFile.size > 10 * 1024 * 1024) {
-            return res.status(400).json({ success: false, message: "Gif exceeds 10MB limit" });
-        }
+        if (gifFile && gifFile.size > maxSize)
+            return res.status(400).json({ success: false, message: "GIF exceeds 10MB limit" });
 
-        // Upload to S3
-        const videoUrl = videoFile ? await uploadToS3(videoFile, "videos") : null;
-        const thumbnailUrl = thumbnailFile ? await uploadToS3(thumbnailFile, "thumbnails") : null;
-        const gifUrl = gifFile ? await uploadToS3(gifFile, "gifs") : null;
+        // 🟩 Step 4: Parse categoryIds
+        let parsedIds = categoryIds;
+        if (typeof categoryIds === "string") {
+            try {
+                parsedIds = JSON.parse(categoryIds);
+            } catch {
+                parsedIds = [categoryIds];
+            }
+        }
+        if (!Array.isArray(parsedIds)) parsedIds = [parsedIds];
 
-        // Save in DB
-        const wallpaper = await Wallpaper.create({
-            title,
-            url: getS3Key(videoUrl),
-            thumbnail: getS3Key(thumbnailUrl),
-            gif: getS3Key(gifUrl),
-            type,
-            isPremium
+        // 🟩 Step 5: Validate categories
+        const categories = await Category.findAll({
+            where: { id: { [Op.in]: parsedIds } },
+            transaction,
         });
 
-        // Handle categories (string from Postman needs parsing)
-        if (categoryIds) {
-            let parsedIds = categoryIds;
-
-            if (typeof categoryIds === "string") {
-                try {
-                    parsedIds = JSON.parse(categoryIds);
-                } catch (e) {
-                    parsedIds = [categoryIds];
-                }
-            }
-
-            if (!Array.isArray(parsedIds)) {
-                parsedIds = [parsedIds];
-            }
-
-            await wallpaper.setCategories(parsedIds);
+        if (categories.length !== parsedIds.length) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "One or more provided categories do not exist",
+            });
         }
 
+        // 🟩 Step 6: Upload files to S3
+        const videoUrl = await uploadToS3(videoFile, "videos");
+        const thumbnailUrl = await uploadToS3(thumbnailFile, "thumbnails");
+        const gifUrl = gifFile ? await uploadToS3(gifFile, "gifs") : null;
 
-        // Fetch with categories
+        // 🟩 Step 7: Create wallpaper
+        const wallpaper = await Wallpaper.create(
+            {
+                title,
+                url: getS3Key(videoUrl),
+                thumbnail: getS3Key(thumbnailUrl),
+                gif: gifUrl ? getS3Key(gifUrl) : null,
+                type,
+                isPremium: isPremium || false,
+            },
+            { transaction }
+        );
+
+        // 🟩 Step 8: Link categories
+        await wallpaper.setCategories(parsedIds, { transaction });
+
+        // 🟩 Step 9: Commit transaction
+        await transaction.commit();
+
+        // 🟩 Step 10: Fetch result and clear cache
         const result = await Wallpaper.findByPk(wallpaper.id, {
             include: [{ model: Category, as: "categories" }],
         });
 
         clearCacheExceptCategories();
 
-        res.status(201).json({ success: true, data: result });
+        return res.status(201).json({ success: true, data: result });
     } catch (error) {
         console.error("❌ Error creating wallpaper:", error);
-        res.status(500).json({ success: false, message: "Failed to create wallpaper" });
+        await transaction.rollback();
+        return res.status(500).json({ success: false, message: "Failed to create wallpaper" });
     }
 };
 

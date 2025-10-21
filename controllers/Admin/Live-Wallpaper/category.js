@@ -1,5 +1,6 @@
-const { Category } = require("../../../utils/db").loadModels();
+const { Category, Wallpaper, WallpaperCategory, sequelize } = require("../../../utils/db").loadModels();
 const cache = require("../../../utils/cache");
+const { deleteFromS3, getS3Key } = require("../../../utils/uploadToS3");
 const { Op } = require("sequelize");
 
 function clearCategoryCache() {
@@ -149,20 +150,71 @@ const updateCategory = async (req, res) => {
   }
 };
 
-// Delete category
 const deleteCategory = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { id } = req.params;
-    const category = await Category.findByPk(id);
-    if (!category) return res.status(404).json({ error: "Category not found" });
 
-    await category.destroy();
+    // 🟩 Step 1: Find the category
+    const category = await Category.findByPk(id, { transaction });
+    if (!category) {
+      await transaction.rollback();
+      return res.status(404).json({ error: "Category not found" });
+    }
 
+    // 🟩 Step 2: Find all wallpaper links for this category
+    const wallpaperLinks = await WallpaperCategory.findAll({
+      where: { categoryId: id },
+      transaction
+    });
+
+    // Extract wallpaper IDs
+    const wallpaperIds = wallpaperLinks.map(link => link.wallpaperId);
+
+    if (wallpaperIds.length > 0) {
+      // 🟩 Step 3: Fetch all related wallpapers
+      const wallpapers = await Wallpaper.findAll({
+        where: { id: wallpaperIds },
+        transaction
+      });
+
+      // 🟩 Step 4: Delete related wallpaper files and records
+      for (const wallpaper of wallpapers) {
+        const filesToDelete = [];
+
+        if (wallpaper.url) filesToDelete.push(wallpaper.url);
+        if (wallpaper.thumbnail) filesToDelete.push(wallpaper.thumbnail);
+        if (wallpaper.gif) filesToDelete.push(wallpaper.gif);
+
+        // Delete files from S3 (non-transactional)
+        await Promise.all(filesToDelete.map(fileKey => deleteFromS3(fileKey)));
+
+        // Delete wallpaper record (transactional)
+        await wallpaper.destroy({ transaction });
+      }
+
+      // 🟩 Step 5: Delete category links
+      await WallpaperCategory.destroy({
+        where: { categoryId: id },
+        transaction
+      });
+    }
+
+    // 🟩 Step 6: Delete category itself
+    await category.destroy({ transaction });
+
+    // 🟩 Step 7: Commit transaction
+    await transaction.commit();
+
+    // 🟩 Step 8: Clear cache (after successful commit)
     clearCategoryCache();
 
-    res.json({ message: "Category deleted successfully" });
+    res.json({ message: "Category and related wallpapers deleted successfully" });
   } catch (err) {
-    console.error(err);
+    // Rollback if any error occurs
+    await transaction.rollback();
+    console.error("❌ Error deleting category and wallpapers:", err);
     res.status(500).json({ error: "Server error" });
   }
 };
