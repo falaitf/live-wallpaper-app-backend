@@ -72,16 +72,19 @@ exports.createWallpaper = async (req, res) => {
 };
 
 const clearCacheExceptCategories = () => {
-    const keys = cache.keys(); 
+    try {
+        const keys = cache.keys();
 
-    keys.forEach((key) => {
-        if (key.startsWith("categories") || key.startsWith("videosByCat_")) {
-            cache.del(key);
+        if (keys && keys.length > 0) {
+            keys.forEach((key) => cache.del(key));
+            console.log(`🧹 Cleared ${keys.length} cache keys`);
+        } else {
+            console.log("🧹 No cache keys to clear");
         }
-    });
+    } catch (err) {
+        console.error("❌ Error clearing cache:", err);
+    }
 };
-
-
 
 const getS3Key = (url) => {
     if (!url) return null;

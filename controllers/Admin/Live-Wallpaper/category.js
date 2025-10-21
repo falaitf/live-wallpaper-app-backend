@@ -3,13 +3,18 @@ const cache = require("../../../utils/cache");
 const { Op } = require("sequelize");
 
 function clearCategoryCache() {
-  const keys = cache.keys();
-  keys.forEach((key) => {
-    if (key.startsWith("categories")) {
-      cache.del(key);
+  try {
+    const keys = cache.keys();
+
+    if (keys && keys.length > 0) {
+      keys.forEach((key) => cache.del(key));
+      console.log(`🧹 Cleared ${keys.length} cache keys`);
+    } else {
+      console.log("🧹 No cache keys to clear");
     }
-  });
-  console.log("🧹 Cleared all category-related cache entries");
+  } catch (err) {
+    console.error("❌ Error clearing cache:", err);
+  }
 }
 
 // Add new category

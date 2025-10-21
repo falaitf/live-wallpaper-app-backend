@@ -227,9 +227,10 @@ const normalizeResponse = (response, useApi) => {
                             ? 1080
                             : item.quality === 'no_watermark' ||
                                 item.quality === 'video mp4 720p' ||
+                                item.quality === 'watermark' ||
                                 item.quality === '720P mp4'
                                 ? 720
-                                : 720;
+                                : item.quality;
 
                     if (!seenFormats.has(formatValue)) {
                         media.push({
