@@ -105,65 +105,69 @@ exports.getVideosByCategory = async (req, res) => {
 };
 
 exports.getCategoriesWithWallpapers = async (req, res) => {
-  try {
-    let { page = 1, limit = 10 } = req.query;
-    page = parseInt(page);
-    limit = parseInt(limit);
-    const offset = (page - 1) * limit;
+    try {
+        let { page = 1, limit = 10 } = req.query;
+        page = parseInt(page);
+        limit = parseInt(limit);
+        const offset = (page - 1) * limit;
 
-    // ✅ Cache key per page/limit
-    const cacheKey = `categoriesWithWallpapers_${page}_${limit}`;
-    const cached = cache.get(cacheKey);
-    if (cached) return res.json(cached);
+        // ✅ Cache key per page/limit
+        const cacheKey = `categoriesWithWallpapers_${page}_${limit}`;
+        const cached = cache.get(cacheKey);
+        if (cached) return res.json(cached);
 
-    // ✅ Fetch paginated categories
-    const { count, rows: categories } = await Category.findAndCountAll({
-      limit,
-      offset,
-      order: [["createdAt", "DESC"]],
-      include: [
-        {
-          model: Wallpaper,
-          as: "wallpapers",
-          attributes: ["id", "title", "url", "thumbnail", "gif", "type", "isPremium"],
-        },
-      ],
-      distinct: true,
-    });
+        // ✅ Fetch paginated categories
+        const { count, rows: categories } = await Category.findAndCountAll({
+            limit,
+            offset,
+            order: [["createdAt", "DESC"]],
+            include: [
+                {
+                    model: Wallpaper,
+                    as: "wallpapers",
+                    attributes: ["id", "title", "url", "thumbnail", "gif", "type", "isPremium"],
+                },
+            ],
+            distinct: true,
+        });
 
-    // ✅ Prepare response
-    const formatted = categories.map((cat) => ({
-      id: cat.id,
-      name: cat.name,
-      totalWallpapers: cat.wallpapers?.length || 0,
-      wallpapers: cat.wallpapers?.map((w) => ({
-        id: w.id,
-        title: w.title,
-        url: w.url || null,
-        thumbnail: w.thumbnail || null,
-        gif: w.gif || null,
-        type: w.type,
-        isPremium: w.isPremium
-      })),
-    }));
+        categories.forEach(category => {
+            category.wallpapers.sort((a, b) => b.id - a.id); 
+        });
 
-    const response = {
-      page,
-      limit,
-      totalCategories: count,
-      categories: formatted,
-    };
+        // ✅ Prepare response
+        const formatted = categories.map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+            totalWallpapers: cat.wallpapers?.length || 0,
+            wallpapers: cat.wallpapers?.map((w) => ({
+                id: w.id,
+                title: w.title,
+                url: w.url || null,
+                thumbnail: w.thumbnail || null,
+                gif: w.gif || null,
+                type: w.type,
+                isPremium: w.isPremium
+            })),
+        }));
 
-    // ✅ Cache response
-    cache.set(cacheKey, response);
+        const response = {
+            page,
+            limit,
+            totalCategories: count,
+            categories: formatted,
+        };
 
-    res.json(response);
-  } catch (err) {
-    console.error("❌ Error fetching categories with wallpapers:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch categories with wallpapers" });
-  }
+        // ✅ Cache response
+        cache.set(cacheKey, response);
+
+        res.json(response);
+    } catch (err) {
+        console.error("❌ Error fetching categories with wallpapers:", err);
+        res
+            .status(500)
+            .json({ success: false, message: "Failed to fetch categories with wallpapers" });
+    }
 };
 
 exports.searchVideos = async (req, res) => {
@@ -257,7 +261,7 @@ exports.searchVideos = async (req, res) => {
                 thumbnail: w.thumbnail ? w.thumbnail : null,
                 gif: w.gif ? w.gif : null,
                 type: w.type,
-                category: w.categories?.[0]?.name || null, 
+                category: w.categories?.[0]?.name || null,
                 isPremium: w.isPremium
             })),
         });

@@ -92,7 +92,7 @@ app.use(express.static(path.join(__dirname, 'public')));
     await connectDB();
 
     // Load models
-    // const db = loadModels();
+    const db = loadModels();
 
     // Sync models
     // await db.sequelize.sync({ alter: true });
