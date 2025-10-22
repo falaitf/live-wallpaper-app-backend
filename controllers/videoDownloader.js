@@ -58,10 +58,6 @@ exports.downloadMedia = async (req, res) => {
         let response = await callDownloaderApi(url, useApi);
         let normalizedResponse = normalizeResponse(response, useApi);
 
-        if (platform === 'instagram') {
-            console.log(response)
-        }
-
         // If first API failed, try the other one
         if (!normalizedResponse || normalizedResponse.media.length === 0) {
             var fallbackApi = useApi === 'allMediaDownloader' ? 'socialDownloader' : 'allMediaDownloader';
@@ -222,15 +218,19 @@ const normalizeResponse = (response, useApi) => {
 
             for (const item of items) {
                 if (item.type === 'video') {
-                    let formatValue =
-                        item.quality === 'hd_no_watermark'
-                            ? 1080
-                            : item.quality === 'no_watermark' ||
-                                item.quality === 'video mp4 720p' ||
-                                item.quality === 'watermark' ||
-                                item.quality === '720P mp4'
-                                ? 720
-                                : item.quality;
+                    if (item.quality === 'hd_no_watermark' || item.quality === 'HD') {
+                        formatValue = 1080;
+                    } else if (
+                        item.quality === 'no_watermark' ||
+                        item.quality === 'video mp4 720p' ||
+                        item.quality === 'watermark' ||
+                        item.quality === '720P mp4' ||
+                        item.quality === 'SD'
+                    ) {
+                        formatValue = 720;
+                    } else {
+                        formatValue = item.quality;
+                    }
 
                     if (!seenFormats.has(formatValue)) {
                         media.push({
