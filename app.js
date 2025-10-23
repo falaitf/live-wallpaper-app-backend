@@ -35,7 +35,9 @@ var adminUserRouter = require('./routes/Admin/User/user');
 var adminBlogRouter = require('./routes/Admin/Blogs/blog');
 var adminPageRouter = require('./routes/Admin/Page/page');
 var adminCategoryRouter = require('./routes/Admin/Live-Wallpaper/category');
+var adminBatteryCategoryRouter = require('./routes/Admin/Battery-Animation/category');
 var adminWallpaperRouter = require('./routes/Admin/Live-Wallpaper/wallpaper');
+var adminAnimationRouter = require('./routes/Admin/Battery-Animation/animation');
 
 // Category
 var categoryRouter = require('./routes/category');
@@ -49,6 +51,10 @@ var pagesRouter = require('./routes/pages');
 var fileProxyRouter = require('./routes/fileProxy');
 // VIdeo Downloader
 var videoDownloaderRouter = require('./routes/videoDownloader');
+// Battery Category
+var batteryCategoryRouter = require('./routes/batteryCategory');
+// Battery Animation
+var batteryAnimationRouter = require('./routes/animation');
 
 
 var app = express();
@@ -217,7 +223,9 @@ app.use('/api/v1/admin/user', adminUserRouter);
 app.use('/api/v1/admin/blog', adminBlogRouter);
 app.use('/api/v1/admin/page', adminPageRouter);
 app.use('/api/v1/admin/live-wallpaper/category', adminCategoryRouter);
+app.use('/api/v1/admin/battery-animation/category', adminBatteryCategoryRouter);
 app.use('/api/v1/admin/live-wallpaper/wallpaper', adminWallpaperRouter);
+app.use('/api/v1/admin/battery-animation/animation', adminAnimationRouter);
 
 // Category
 app.use('/api/v1/category', categoryRouter);
@@ -231,6 +239,10 @@ app.use('/api/v1/page', pagesRouter);
 app.use('/api/v1/files', fileProxyRouter);
 // VIdeo Downloader
 app.use('/api/v1/video', videoDownloaderRouter);
+// Battery Category
+app.use('/api/v1/battery-animation/category', batteryCategoryRouter);
+// Battery Animation
+app.use('/api/v1/battery-animation/animation', batteryAnimationRouter);
 
 module.exports = app;
 

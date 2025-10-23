@@ -41,6 +41,20 @@ const appsConfig = [
     ],
   },
   {
+    name: "Battery Animation",
+    slug: "battery-animation",
+    permissions: [
+      { code: "animation.create", name: "Create Animation" },
+      { code: "animation.view", name: "View Animation" },
+      { code: "animation.update", name: "Update Animation" },
+      { code: "animation.delete", name: "Delete Animation" },
+      { code: "animationcategories.create", name: "Create Category" },
+      { code: "animationcategories.view", name: "View Category" },
+      { code: "animationcategories.update", name: "Update Category" },
+      { code: "animationcategories.delete", name: "Delete Category" },
+    ],
+  },
+  {
     name: "Interior Design",
     slug: "interior-design",
     permissions: [

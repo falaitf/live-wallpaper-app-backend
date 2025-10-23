@@ -42,6 +42,9 @@ const loadModels = () => {
   const Category = require("../models/category")(sequelize, DataTypes);
   const Wallpaper = require("../models/wallpaper")(sequelize, DataTypes);
   const WallpaperCategory = require("../models/wallpapercategory")(sequelize, DataTypes);
+  const BatteryCategory = require("../models/batteryCategory")(sequelize, DataTypes);
+  const BatteryAnimationCategory = require("../models/batteryAnimationCategory")(sequelize, DataTypes);
+  const BatteryAnimation = require("../models/batteryAnimation")(sequelize, DataTypes);
   const User = require("../models/user")(sequelize, DataTypes);
   const App = require("../models/app")(sequelize, DataTypes);
   const Permission = require("../models/permission")(sequelize, DataTypes);
@@ -69,6 +72,24 @@ const loadModels = () => {
     otherKey: "categoryId",
     as: "categories",
   });
+
+  // =============================
+  // BatteryAnimation ↔ BatteryCategory (M:M)
+  // =============================
+  BatteryCategory.belongsToMany(BatteryAnimation, {
+    through: BatteryAnimationCategory,
+    foreignKey: "categoryId",
+    otherKey: "animationId",
+    as: "animations",
+  });
+
+  BatteryAnimation.belongsToMany(BatteryCategory, {
+    through: BatteryAnimationCategory,
+    foreignKey: "animationId",
+    otherKey: "categoryId",
+    as: "categories",
+  });
+
 
   // =============================
   // User ↔ App (M:M via UserAppPermission)
@@ -165,6 +186,9 @@ const loadModels = () => {
     sequelize,
     Sequelize,
     Category,
+    BatteryCategory,
+    BatteryAnimation,
+    BatteryAnimationCategory,
     Wallpaper,
     WallpaperCategory,
     User,
