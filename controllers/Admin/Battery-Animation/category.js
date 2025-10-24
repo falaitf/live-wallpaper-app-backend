@@ -9,7 +9,7 @@ const cache = require("../../../utils/cache");
 const { deleteFromS3, getS3Key } = require("../../../utils/uploadToS3");
 const { Op } = require("sequelize");
 
-// ✅ Helper to clear cache
+//  Helper to clear cache
 function clearBatteryCategoryCache() {
   try {
     const keys = cache.keys();
@@ -41,7 +41,7 @@ const addBatteryCategory = async (req, res) => {
       });
     }
 
-    // ✅ ensure model is defined before using
+    //  ensure model is defined before using
     if (!BatteryCategory) {
       console.error("BatteryCategory model not found or not imported correctly");
       return res.status(500).json({ error: "Model not initialized" });
@@ -64,7 +64,7 @@ const addBatteryCategory = async (req, res) => {
   }
 };
 
-// ✅ Get all battery categories (with pagination + search)
+//  Get all battery categories (with pagination + search)
 const getBatteryCategories = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -110,7 +110,7 @@ const getBatteryCategories = async (req, res) => {
   }
 };
 
-// ✅ Get single battery category by ID
+//  Get single battery category by ID
 const getBatteryCategoryById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -143,7 +143,7 @@ const getBatteryCategoryById = async (req, res) => {
   }
 };
 
-// ✅ Update battery category
+//  Update battery category
 const updateBatteryCategory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -181,7 +181,7 @@ const updateBatteryCategory = async (req, res) => {
   }
 };
 
-// ✅ Delete category and related animations
+//  Delete category and related animations
 const deleteBatteryCategory = async (req, res) => {
   const transaction = await sequelize.transaction();
 

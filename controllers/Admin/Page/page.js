@@ -181,16 +181,16 @@ exports.getPages = async (req, res) => {
   try {
     const loggedInUser = req.user;
 
-    // 🔹 Pagination & search params
+    //  Pagination & search params
     const pageNumber = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (pageNumber - 1) * limit;
     const search = req.query.query?.trim() || "";
 
-    // 🔹 Base filter
+    //  Base filter
     let whereClause = {};
 
-    // 🔹 Restrict based on user type
+    //  Restrict based on user type
     if (loggedInUser.userType === "appUser" || loggedInUser.userType === "appAdmin") {
       const allowedAppIds = loggedInUser.permissions.map((p) => p.app.id);
       if (allowedAppIds.length === 0) {
@@ -199,7 +199,7 @@ exports.getPages = async (req, res) => {
       whereClause.appId = { [Op.in]: allowedAppIds };
     }
 
-    // 🔹 Apply search filter (case-insensitive)
+    //  Apply search filter (case-insensitive)
     if (search) {
       whereClause[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
@@ -208,7 +208,7 @@ exports.getPages = async (req, res) => {
       ];
     }
 
-    // 🔹 Fetch pages with pagination and app info
+    //  Fetch pages with pagination and app info
     const { count, rows } = await Page.findAndCountAll({
       where: whereClause,
       attributes: ["id", "name", "slug", "tags", "appId"],
@@ -225,7 +225,7 @@ exports.getPages = async (req, res) => {
       distinct: true,
     });
 
-    // 🔹 Format response
+    //  Format response
     const formatted = rows.map((p) => ({
       pageId: p.id,
       name: p.name,
@@ -235,7 +235,7 @@ exports.getPages = async (req, res) => {
       appName: p.app ? p.app.name : null,
     }));
 
-    // 🔹 Paginated response
+    //  Paginated response
     const totalPages = Math.ceil(count / limit);
 
     res.json({

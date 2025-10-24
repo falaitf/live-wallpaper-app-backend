@@ -39,7 +39,7 @@ exports.getAllBatteryAnimations = async (req, res) => {
 
     res.json(response);
   } catch (err) {
-    console.error("❌ Error fetching battery animations:", err);
+    console.error(" Error fetching battery animations:", err);
     res.status(500).json({ success: false, message: "Failed to fetch battery animations" });
   }
 };
@@ -89,7 +89,7 @@ exports.getBatteryAnimationsByCategory = async (req, res) => {
 
     res.json(response);
   } catch (err) {
-    console.error("❌ Error fetching battery animations by category:", err);
+    console.error(" Error fetching battery animations by category:", err);
     res
       .status(500)
       .json({ success: false, message: "Failed to fetch battery animations by category" });
@@ -150,7 +150,7 @@ exports.getBatteryCategoriesWithAnimations = async (req, res) => {
     cache.set(cacheKey, response);
     res.json(response);
   } catch (err) {
-    console.error("❌ Error fetching battery categories with animations:", err);
+    console.error(" Error fetching battery categories with animations:", err);
     res
       .status(500)
       .json({ success: false, message: "Failed to fetch battery categories with animations" });
@@ -249,7 +249,7 @@ exports.searchBatteryAnimations = async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("❌ Error searching battery animations:", error);
+    console.error(" Error searching battery animations:", error);
     res
       .status(500)
       .json({ success: false, message: "Error searching battery animations" });

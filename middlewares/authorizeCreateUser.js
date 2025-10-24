@@ -2,12 +2,12 @@ exports.authorizeCreateUser = (req, res, next) => {
   const { userType, appId } = req.body;
   const loggedInUser = req.user; // from JWT payload
 
-  // ✅ SuperAdmin can create anyone
+  //  SuperAdmin can create anyone
   if (loggedInUser.userType === "superAdmin") {
     return next();
   }
 
-  // ✅ AppAdmin → can only create appUsers for their own apps
+  //  AppAdmin → can only create appUsers for their own apps
   if (loggedInUser.userType === "appAdmin") {
     if (userType !== "appUser") {
       return res
@@ -27,6 +27,6 @@ exports.authorizeCreateUser = (req, res, next) => {
     return next();
   }
 
-  // ❌ Other roles cannot create users
+  //  Other roles cannot create users
   return res.status(403).json({ success: false, error: "Not authorized to perform this action" });
 };

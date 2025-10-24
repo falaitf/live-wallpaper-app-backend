@@ -111,12 +111,12 @@ exports.getCategoriesWithWallpapers = async (req, res) => {
         limit = parseInt(limit);
         const offset = (page - 1) * limit;
 
-        // ✅ Cache key per page/limit
+        //  Cache key per page/limit
         const cacheKey = `categoriesWithWallpapers_${page}_${limit}`;
         const cached = cache.get(cacheKey);
         if (cached) return res.json(cached);
 
-        // ✅ Fetch paginated categories
+        //  Fetch paginated categories
         const { count, rows: categories } = await Category.findAndCountAll({
             limit,
             offset,
@@ -135,7 +135,7 @@ exports.getCategoriesWithWallpapers = async (req, res) => {
             category.wallpapers.sort((a, b) => b.id - a.id); 
         });
 
-        // ✅ Prepare response
+        //  Prepare response
         const formatted = categories.map((cat) => ({
             id: cat.id,
             name: cat.name,
@@ -158,7 +158,7 @@ exports.getCategoriesWithWallpapers = async (req, res) => {
             categories: formatted,
         };
 
-        // ✅ Cache response
+        //  Cache response
         cache.set(cacheKey, response);
 
         res.json(response);

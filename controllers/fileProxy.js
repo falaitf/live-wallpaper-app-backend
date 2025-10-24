@@ -61,7 +61,7 @@ exports.getBlogFile = async (req, res) => {
     res.setHeader("Content-Type", "image/jpeg"); // you can detect type dynamically if needed
     s3Stream.pipe(res);
   } catch (err) {
-    console.error("❌ Proxy error (blog image):", err);
+    console.error(" Proxy error (blog image):", err);
     res.status(500).json({ error: "Failed to fetch image" });
   }
 };

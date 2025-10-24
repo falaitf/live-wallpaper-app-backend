@@ -193,14 +193,14 @@ const deleteCategory = async (req, res) => {
     }
 
 
-    // 🟩 Step 1: Find the category
+    //  Step 1: Find the category
     const category = await Category.findByPk(id, { transaction });
     if (!category) {
       await transaction.rollback();
       return res.status(404).json({ error: "Category not found" });
     }
 
-    // 🟩 Step 2: Find all wallpaper links for this category
+    //  Step 2: Find all wallpaper links for this category
     const wallpaperLinks = await WallpaperCategory.findAll({
       where: { categoryId: id },
       transaction
@@ -210,13 +210,13 @@ const deleteCategory = async (req, res) => {
     const wallpaperIds = wallpaperLinks.map(link => link.wallpaperId);
 
     if (wallpaperIds.length > 0) {
-      // 🟩 Step 3: Fetch all related wallpapers
+      //  Step 3: Fetch all related wallpapers
       const wallpapers = await Wallpaper.findAll({
         where: { id: wallpaperIds },
         transaction
       });
 
-      // 🟩 Step 4: Delete related wallpaper files and records
+      //  Step 4: Delete related wallpaper files and records
       for (const wallpaper of wallpapers) {
         const filesToDelete = [];
 
@@ -231,20 +231,20 @@ const deleteCategory = async (req, res) => {
         await wallpaper.destroy({ transaction });
       }
 
-      // 🟩 Step 5: Delete category links
+      //  Step 5: Delete category links
       await WallpaperCategory.destroy({
         where: { categoryId: id },
         transaction
       });
     }
 
-    // 🟩 Step 6: Delete category itself
+    //  Step 6: Delete category itself
     await category.destroy({ transaction });
 
-    // 🟩 Step 7: Commit transaction
+    //  Step 7: Commit transaction
     await transaction.commit();
 
-    // 🟩 Step 8: Clear cache (after successful commit)
+    //  Step 8: Clear cache (after successful commit)
     clearCategoryCache();
 
     res.json({ message: "Category and related wallpapers deleted successfully" });

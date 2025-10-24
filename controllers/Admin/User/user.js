@@ -129,7 +129,7 @@ exports.createUser = async (req, res) => {
     } catch (err) {
         // rollback on error
         await t.rollback();
-        console.error("❌ Error creating user:", err);
+        console.error(" Error creating user:", err);
         res.status(500).json({ success: false, error: "Internal server error" });
     }
 };
@@ -209,7 +209,7 @@ exports.getUsers = async (req, res) => {
             users: result,
         });
     } catch (err) {
-        console.error("❌ Error fetching users:", err);
+        console.error(" Error fetching users:", err);
         res.status(500).json({ success: false, error: "Internal server error" });
     }
 };
@@ -269,7 +269,7 @@ exports.toggleUserStatus = async (req, res) => {
         return res.status(403).json({ success: false, error: "Not authorized" });
     } catch (err) {
         await t.rollback();
-        console.error("❌ Error toggling user status:", err);
+        console.error(" Error toggling user status:", err);
         res.status(500).json({ success: false, error: "Internal server error" });
     }
 };
@@ -281,7 +281,7 @@ exports.updateUserPermissions = async (req, res) => {
         const loggedInUser = req.user;
         const { userId, appId, permissionIds } = req.body;
 
-        // ❌ appUser cannot update permissions
+        //  appUser cannot update permissions
         if (loggedInUser.userType === "appUser") {
             await t.rollback();
             return res.status(403).json({ success: false, error: "Not authorized" });
@@ -297,7 +297,7 @@ exports.updateUserPermissions = async (req, res) => {
             return res.status(404).json({ success: false, error: "User not found" });
         }
 
-        // ❌ Cannot update superAdmin
+        //  Cannot update superAdmin
         if (user.userType === "superAdmin") {
             await t.rollback();
             return res.status(403).json({ success: false, error: "Cannot update superAdmin" });
@@ -334,7 +334,7 @@ exports.updateUserPermissions = async (req, res) => {
         res.json({ success: true, message: "Permissions updated successfully" });
     } catch (err) {
         await t.rollback();
-        console.error("❌ Error updating permissions:", err);
+        console.error(" Error updating permissions:", err);
         res.status(500).json({ success: false, error: "Internal server error" });
     }
 };
@@ -344,7 +344,7 @@ exports.getUser = async (req, res) => {
         const loggedInUser = req.user;
         const { userId } = req.params;
 
-        // ❌ appUser cannot access
+        //  appUser cannot access
         if (loggedInUser.userType === "appUser") {
             return res.status(403).json({ success: false, error: "Not authorized" });
         }
@@ -367,12 +367,12 @@ exports.getUser = async (req, res) => {
             return res.status(404).json({ success: false, error: "User not found" });
         }
 
-        // ❌ Exclude superAdmin from being fetched by others
+        //  Exclude superAdmin from being fetched by others
         if (user.userType === "superAdmin") {
             return res.status(403).json({ success: false, error: "Cannot fetch superAdmin" });
         }
 
-        // ✅ AppAdmin can only fetch appUsers from their apps
+        //  AppAdmin can only fetch appUsers from their apps
         if (loggedInUser.userType === "appAdmin") {
             const adminAppIds = loggedInUser.permissions.map((p) => p.app.id);
 
@@ -414,7 +414,7 @@ exports.getUser = async (req, res) => {
 
         res.json({ success: true, user: result });
     } catch (err) {
-        console.error("❌ Error fetching user:", err);
+        console.error(" Error fetching user:", err);
         res.status(500).json({ success: false, error: "Internal server error" });
     }
 };

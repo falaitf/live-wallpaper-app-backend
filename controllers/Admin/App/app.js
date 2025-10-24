@@ -2,7 +2,7 @@ const { App, Permission } = require("../../../utils/db").loadModels();
 const { Op } = require("sequelize");
 const { validate: isUuid } = require("uuid");
 
-// 🔹 Get all apps
+//  Get all apps
 exports.getApps = async (req, res) => {
     try {
         const apps = await App.findAll({
@@ -11,12 +11,12 @@ exports.getApps = async (req, res) => {
 
         res.json({ success: true, apps });
     } catch (err) {
-        console.error("❌ Error fetching apps:", err);
+        console.error(" Error fetching apps:", err);
         res.status(500).json({ success: false, error: "Internal server error" });
     }
 };
 
-// 🔹 Get permissions of a specific app
+//  Get permissions of a specific app
 exports.getAppPermissions = async (req, res) => {
     try {
         const { appId } = req.params; // can be ID or slug
@@ -55,7 +55,7 @@ exports.getAppPermissions = async (req, res) => {
             permissions: app.permissions,
         });
     } catch (err) {
-        console.error("❌ Error fetching app permissions:", err);
+        console.error(" Error fetching app permissions:", err);
         res.status(500).json({ success: false, error: "Internal server error" });
     }
 };

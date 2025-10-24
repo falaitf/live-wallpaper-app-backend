@@ -3,14 +3,14 @@ const { uploadToS3, deleteFromS3 } = require("../../../utils/uploadToS3");
 const { Op, Sequelize } = require("sequelize");
 const cache = require("../../../utils/cache");
 
-// ✅ Create Battery Animation
+//  Create Battery Animation
 exports.createBatteryAnimation = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const { title, type, categoryIds, isPremium } = req.body;
         const { video, thumbnail, gif } = req.files || {};
 
-        // 🟩 Step 1: Validate required fields
+        //  Step 1: Validate required fields
         if (!title || !type || !categoryIds) {
             await transaction.rollback();
             return res
@@ -27,7 +27,7 @@ exports.createBatteryAnimation = async (req, res) => {
             });
         }
 
-        // 🟩 Step 2: Handle uploaded files
+        //  Step 2: Handle uploaded files
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
         const thumbnailFile = thumbnail ? (Array.isArray(thumbnail) ? thumbnail[0] : thumbnail) : null;
         const gifFile = gif ? (Array.isArray(gif) ? gif[0] : gif) : null;
@@ -39,7 +39,7 @@ exports.createBatteryAnimation = async (req, res) => {
                 .json({ success: false, message: "Video and thumbnail are required" });
         }
 
-        // 🟩 Step 3: Validate file types
+        //  Step 3: Validate file types
         if (!videoFile.mimetype.startsWith("video/")) {
             await transaction.rollback();
             return res.status(400).json({
@@ -65,7 +65,7 @@ exports.createBatteryAnimation = async (req, res) => {
             });
         }
 
-        // 🟩 Step 4: Validate file sizes
+        //  Step 4: Validate file sizes
         const maxVideoSize = 20 * 1024 * 1024; // 20MB
         const maxImageSize = 3 * 1024 * 1024; // 3MB
 
@@ -84,7 +84,7 @@ exports.createBatteryAnimation = async (req, res) => {
             return res.status(400).json({ success: false, message: "GIF exceeds 3MB limit" });
         }
 
-        // 🟩 Step 5: Parse and validate categories
+        //  Step 5: Parse and validate categories
         let parsedIds = categoryIds;
         if (typeof categoryIds === "string") {
             try {
@@ -108,12 +108,12 @@ exports.createBatteryAnimation = async (req, res) => {
             });
         }
 
-        // 🟩 Step 6: Upload files to S3
+        //  Step 6: Upload files to S3
         const videoUrl = await uploadToS3(videoFile, "battery-videos");
         const thumbnailUrl = await uploadToS3(thumbnailFile, "battery-thumbnails");
         const gifUrl = gifFile ? await uploadToS3(gifFile, "battery-gifs") : null;
 
-        // 🟩 Step 7: Create battery animation
+        //  Step 7: Create battery animation
         const batteryAnimation = await BatteryAnimation.create(
             {
                 title,
@@ -126,12 +126,12 @@ exports.createBatteryAnimation = async (req, res) => {
             { transaction }
         );
 
-        // 🟩 Step 8: Link categories
+        //  Step 8: Link categories
         await batteryAnimation.setCategories(parsedIds, { transaction });
 
         await transaction.commit();
 
-        // 🟩 Step 9: Fetch result and clear cache
+        //  Step 9: Fetch result and clear cache
         const result = await BatteryAnimation.findByPk(batteryAnimation.id, {
             include: [{ model: BatteryCategory, as: "categories" }],
         });
@@ -146,7 +146,7 @@ exports.createBatteryAnimation = async (req, res) => {
     }
 };
 
-// ✅ Get All Battery Animations
+//  Get All Battery Animations
 exports.getAllBatteryAnimations = async (req, res) => {
     try {
         let { page = 1, limit = 20 } = req.query;
@@ -188,7 +188,7 @@ exports.getAllBatteryAnimations = async (req, res) => {
     }
 };
 
-// ✅ Get Battery Animation By ID
+//  Get Battery Animation By ID
 exports.getBatteryAnimationById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -246,7 +246,7 @@ exports.getBatteryAnimationById = async (req, res) => {
     }
 };
 
-// ✅ Get Battery Animations By Category
+//  Get Battery Animations By Category
 exports.getBatteryAnimationsByCategory = async (req, res) => {
     try {
         const { categoryName } = req.params;
@@ -298,7 +298,7 @@ exports.getBatteryAnimationsByCategory = async (req, res) => {
     }
 };
 
-// ✅ Helper Functions
+//  Helper Functions
 const clearBatteryCache = () => {
     try {
         const keys = cache.keys();

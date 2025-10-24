@@ -12,7 +12,7 @@ const generateTokens = (payload) => {
   return { accessToken, refreshToken };
 };
 
-// 🔹 Login
+//  Login
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -83,12 +83,12 @@ exports.login = async (req, res) => {
       ...tokens,
     });
   } catch (err) {
-    console.error("❌ Login error:", err);
+    console.error(" Login error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-// 🔹 Refresh Token
+//  Refresh Token
 exports.refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
@@ -121,7 +121,7 @@ exports.refreshToken = async (req, res) => {
       res.json(tokens);
     });
   } catch (err) {
-    console.error("❌ Refresh error:", err);
+    console.error(" Refresh error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };

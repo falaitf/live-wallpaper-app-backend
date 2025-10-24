@@ -90,9 +90,6 @@ exports.downloadMedia = async (req, res) => {
     }
 };
 
-/**
- * API Call Handler
- */
 const callDownloaderApi = (url, apiType) => {
     return new Promise((resolve, reject) => {
         let options, body;
@@ -149,7 +146,7 @@ const callDownloaderApi = (url, apiType) => {
         });
 
         req.on('error', (err) => {
-            console.error(`❌ Request error from ${apiType}:`, err.message);
+            console.error(` Request error from ${apiType}:`, err.message);
             reject(err);
         });
 
@@ -158,9 +155,6 @@ const callDownloaderApi = (url, apiType) => {
     });
 };
 
-/**
- * ✅ Normalize responses into a unified structure
- */
 const normalizeResponse = (response, useApi) => {
     try {
         if (!response) return { status: 'failed', media: [], thumbnail: null };
@@ -176,11 +170,10 @@ const normalizeResponse = (response, useApi) => {
             const seenFormats = new Set();
 
             for (const format of formats) {
-                if (!format.url || !format.vcodec || format.ext !== 'mp4') continue;
+                if (!format.url || !format.vcodec || format.ext !== 'mp4' || format.resolution === "audio only" || !format.width) continue;
 
-                const resolution = format.resolution || "";
-                const height = parseInt(resolution.split("x")[1]) || 720;
-                const quality = height >= 1080 ? 1080 : 720;
+                // const resolution = format.resolution || "";
+                const quality = format.width;
 
                 // Only one entry per format (1080 or 720)
                 if (!seenFormats.has(quality)) {

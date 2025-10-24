@@ -74,7 +74,7 @@ exports.getBlogWithItems = async (req, res) => {
 
     if (!blog) return res.status(404).json({ success: false, error: "Blog not found" });
 
-    // 🖼️ Convert image items to proxy URLs
+    //  Convert image items to proxy URLs
     const BlogItems = blog.BlogItems
 
     res.json({ success: true, data: { ...blog.toJSON(), BlogItems } });

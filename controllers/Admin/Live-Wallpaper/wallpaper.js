@@ -9,7 +9,7 @@ exports.createWallpaper = async (req, res) => {
         const { title, type, categoryIds, isPremium } = req.body;
         const { video, thumbnail, gif } = req.files || {};
 
-        // 🟩 Step 1: Validate required fields
+        //  Step 1: Validate required fields
         if (!title || !type || !categoryIds) {
             await transaction.rollback();
             return res
@@ -26,7 +26,7 @@ exports.createWallpaper = async (req, res) => {
             });
         }
 
-        // 🟩 Step 2: Handle uploaded files
+        //  Step 2: Handle uploaded files
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
         const thumbnailFile = thumbnail ? (Array.isArray(thumbnail) ? thumbnail[0] : thumbnail) : null;
         const gifFile = gif ? (Array.isArray(gif) ? gif[0] : gif) : null;
@@ -38,7 +38,7 @@ exports.createWallpaper = async (req, res) => {
                 .json({ success: false, message: "Video and thumbnail are required" });
         }
 
-        // 🟩 Step 3: Validate file types
+        //  Step 3: Validate file types
         if (!videoFile.mimetype.startsWith("video/")) {
             await transaction.rollback();
             return res.status(400).json({
@@ -64,7 +64,7 @@ exports.createWallpaper = async (req, res) => {
             });
         }
 
-        // 🟩 Step 4: Validate file sizes
+        //  Step 4: Validate file sizes
         const maxVideoSize = 20 * 1024 * 1024;     // 20 MB
         const maxImageSize = 3 * 1024 * 1024;      // 3 MB (for thumbnail & GIF)
 
@@ -93,7 +93,7 @@ exports.createWallpaper = async (req, res) => {
         }
 
 
-        // 🟩 Step 4: Parse categoryIds
+        //  Step 4: Parse categoryIds
         let parsedIds = categoryIds;
         if (typeof categoryIds === "string") {
             try {
@@ -104,7 +104,7 @@ exports.createWallpaper = async (req, res) => {
         }
         if (!Array.isArray(parsedIds)) parsedIds = [parsedIds];
 
-        // 🟩 Step 5: Validate categories
+        //  Step 5: Validate categories
         const categories = await Category.findAll({
             where: { id: { [Op.in]: parsedIds } },
             transaction,
@@ -118,12 +118,12 @@ exports.createWallpaper = async (req, res) => {
             });
         }
 
-        // 🟩 Step 6: Upload files to S3
+        //  Step 6: Upload files to S3
         const videoUrl = await uploadToS3(videoFile, "videos");
         const thumbnailUrl = await uploadToS3(thumbnailFile, "thumbnails");
         const gifUrl = gifFile ? await uploadToS3(gifFile, "gifs") : null;
 
-        // 🟩 Step 7: Create wallpaper
+        //  Step 7: Create wallpaper
         const wallpaper = await Wallpaper.create(
             {
                 title,
@@ -136,13 +136,13 @@ exports.createWallpaper = async (req, res) => {
             { transaction }
         );
 
-        // 🟩 Step 8: Link categories
+        //  Step 8: Link categories
         await wallpaper.setCategories(parsedIds, { transaction });
 
-        // 🟩 Step 9: Commit transaction
+        //  Step 9: Commit transaction
         await transaction.commit();
 
-        // 🟩 Step 10: Fetch result and clear cache
+        //  Step 10: Fetch result and clear cache
         const result = await Wallpaper.findByPk(wallpaper.id, {
             include: [{ model: Category, as: "categories" }],
         });
@@ -449,7 +449,7 @@ exports.updateWallpaper = async (req, res) => {
 
         const updatedData = {};
 
-        // 🟩 Validate title if provided
+        //  Validate title if provided
         if (title !== undefined) {
             const alphaRegex = /^[A-Za-z\s]+$/;
             if (!alphaRegex.test(title)) {
@@ -462,7 +462,7 @@ exports.updateWallpaper = async (req, res) => {
             updatedData.title = title;
         }
 
-        // 🟩 Validate ID
+        //  Validate ID
         if (!id || isNaN(id) || parseInt(id) <= 0) {
             await transaction.rollback();
             return res.status(400).json({
@@ -477,12 +477,12 @@ exports.updateWallpaper = async (req, res) => {
             return res.status(404).json({ success: false, message: "Wallpaper not found" });
         }
 
-        // 🟩 Extract uploaded files
+        //  Extract uploaded files
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
         const thumbnailFile = thumbnail ? (Array.isArray(thumbnail) ? thumbnail[0] : thumbnail) : null;
         const gifFile = gif ? (Array.isArray(gif) ? gif[0] : gif) : null;
 
-        // 🟩 Validate file types
+        //  Validate file types
         if (videoFile && !videoFile.mimetype.startsWith("video/")) {
             await transaction.rollback();
             return res.status(400).json({
@@ -508,7 +508,7 @@ exports.updateWallpaper = async (req, res) => {
             });
         }
 
-        // 🟩 Validate file sizes
+        //  Validate file sizes
         const maxVideoSize = 20 * 1024 * 1024; // 20 MB
         const maxImageSize = 3 * 1024 * 1024;  // 3 MB
 
@@ -536,12 +536,12 @@ exports.updateWallpaper = async (req, res) => {
             });
         }
 
-        // 🟩 Upload new files (if any)
+        //  Upload new files (if any)
         const videoUrl = videoFile ? await uploadToS3(videoFile, "videos") : null;
         const thumbnailUrl = thumbnailFile ? await uploadToS3(thumbnailFile, "thumbnails") : null;
         const gifUrl = gifFile ? await uploadToS3(gifFile, "gifs") : null;
 
-        // 🟩 Update fields only if provided
+        //  Update fields only if provided
         if (type) updatedData.type = type;
         if (videoUrl) updatedData.url = getS3Key(videoUrl);
         if (thumbnailUrl) updatedData.thumbnail = getS3Key(thumbnailUrl);
@@ -550,7 +550,7 @@ exports.updateWallpaper = async (req, res) => {
 
         await wallpaper.update(updatedData, { transaction });
 
-        // 🟩 Update categories (if provided)
+        //  Update categories (if provided)
         if (categoryIds) {
             let parsedIds = categoryIds;
             if (typeof categoryIds === "string") {
@@ -578,7 +578,7 @@ exports.updateWallpaper = async (req, res) => {
             await wallpaper.setCategories(parsedIds, { transaction });
         }
 
-        // 🟩 Commit and respond
+        //  Commit and respond
         await transaction.commit();
 
         const result = await Wallpaper.findByPk(id, {
