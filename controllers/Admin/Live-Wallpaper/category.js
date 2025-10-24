@@ -50,7 +50,7 @@ const getCategories = async (req, res) => {
     // 🔹 Extract query params with defaults
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const search = req.query.query?.trim() || ""; // ✅ use "search" not "query"
+    const search = req.query.query?.trim() || ""; //  use "search" not "query"
 
     console.log("Incoming query params:", req.query);
 
@@ -147,6 +147,20 @@ const updateCategory = async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
 
+    //  Validate ID first
+    if (!id || isNaN(id) || parseInt(id) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid ID. It must be a positive integer.",
+      });
+    }
+
+    //  Validate name presence
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ error: "Category name is required" });
+    }
+
+    //  Validate name characters
     const alphaRegex = /^[A-Za-z\s]+$/;
     if (!alphaRegex.test(name)) {
       return res.status(400).json({
@@ -155,29 +169,36 @@ const updateCategory = async (req, res) => {
       });
     }
 
-    if (!id || isNaN(id) || parseInt(id) <= 0) {
+    //  Find existing category
+    const category = await Category.findByPk(id);
+    if (!category) return res.status(404).json({ error: "Category not found" });
+
+    //  Check for duplicate name (excluding current ID)
+    const existingCategory = await Category.findOne({ where: { name } });
+    if (existingCategory && existingCategory.id !== parseInt(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid ID. It must be a positive integer.",
+        message: "Category name already exists",
       });
     }
 
-
-    const category = await Category.findByPk(id);
-    if (!category) return res.status(404).json({ error: "Category not found" });
-    if (!name) return res.status(400).json({ error: "Category name is required" });
-
-    category.name = name || category.name;
+    //  Update and save
+    category.name = name.trim();
     await category.save();
 
     clearCategoryCache();
 
-    res.json(category);
+    return res.json({
+      success: true,
+      message: "Category updated successfully",
+      category,
+    });
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error updating category:", err);
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 const deleteCategory = async (req, res) => {
   const transaction = await sequelize.transaction();

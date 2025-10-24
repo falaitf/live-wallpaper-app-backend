@@ -169,17 +169,24 @@ const updateBatteryCategory = async (req, res) => {
     const category = await BatteryCategory.findByPk(id);
     if (!category) return res.status(404).json({ error: "Category not found" });
 
+    //  Check for existing name before update
+    const existingCategory = await BatteryCategory.findOne({ where: { name } });
+    if (existingCategory && existingCategory.id !== parseInt(id)) {
+      return res.status(400).json({ error: "Category name already exists" });
+    }
+
     category.name = name;
     await category.save();
 
     clearBatteryCategoryCache();
 
-    res.json(category);
+    res.json({ success: true, category });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 //  Delete category and related animations
 const deleteBatteryCategory = async (req, res) => {
