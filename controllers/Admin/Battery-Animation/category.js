@@ -1,8 +1,8 @@
-const { 
-  BatteryCategory, 
-  BatteryAnimation, 
-  BatteryAnimationCategory, 
-  sequelize 
+const {
+  BatteryCategory,
+  BatteryAnimation,
+  BatteryAnimationCategory,
+  sequelize
 } = require("../../../utils/db").loadModels();
 
 const cache = require("../../../utils/cache");
@@ -53,9 +53,7 @@ const addBatteryCategory = async (req, res) => {
 
     const category = await BatteryCategory.create({ name });
 
-    if (typeof clearBatteryCategoryCache === "function") {
-      clearBatteryCategoryCache();
-    }
+    clearBatteryCategoryCache();
 
     res.status(201).json(category);
   } catch (err) {
@@ -86,7 +84,7 @@ const getBatteryCategories = async (req, res) => {
 
     const { count, rows: categories } = await BatteryCategory.findAndCountAll({
       where: whereClause,
-      order: [["createdAt", "DESC"]],
+      order: [["sortOrder", "DESC"]],
       limit,
       offset,
     });
@@ -254,10 +252,69 @@ const deleteBatteryCategory = async (req, res) => {
   }
 };
 
+const updateSortOrder = async (req, res) => {
+  try {
+    const { categories } = req.body; 
+
+    for (const update of categories) {
+      const movedCategory = await BatteryCategory.findByPk(update.id);
+      if (!movedCategory) continue;
+
+      const oldOrder = movedCategory.sortOrder;
+      const newOrder = update.sortOrder;
+
+      if (oldOrder === newOrder) continue;
+
+      // Moving DOWN (e.g., 8 → 13)
+      if (oldOrder < newOrder) {
+        await BatteryCategory.increment(
+          { sortOrder: -1 },
+          {
+            where: {
+              sortOrder: { [Op.between]: [oldOrder + 1, newOrder] },
+            },
+          }
+        );
+      }
+      // Moving UP (e.g., 13 → 8)
+      else {
+        await BatteryCategory.increment(
+          { sortOrder: 1 },
+          {
+            where: {
+              sortOrder: { [Op.between]: [newOrder, oldOrder - 1] },
+            },
+          }
+        );
+      }
+
+      // Finally, update the moved category to the new sortOrder
+      await BatteryCategory.update(
+        { sortOrder: newOrder },
+        { where: { id: update.id } }
+      );
+    }
+
+    clearBatteryCategoryCache();
+
+    return res.status(200).json({
+      success: true,
+      message: "Category order updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating sort order:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+
+
 module.exports = {
   addBatteryCategory,
   getBatteryCategories,
   getBatteryCategoryById,
   updateBatteryCategory,
-  deleteBatteryCategory
+  deleteBatteryCategory,
+  updateSortOrder
 };

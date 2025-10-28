@@ -1,4 +1,4 @@
-const { BatteryCategory } = require("../utils/db").loadModels();
+const { BatteryCategory, sequelize } = require("../utils/db").loadModels();
 const cache = require("../utils/cache");
 
 const getBatteryCategories = async (req, res) => {
@@ -11,9 +11,7 @@ const getBatteryCategories = async (req, res) => {
     }
 
     //  Fetch from DB
-    const categories = await BatteryCategory.findAll({
-      order: [["createdAt", "DESC"]],
-    });
+    const categories = await BatteryCategory.findAll({ order: [["sortOrder", "DESC"]] });
 
     //  Save to cache (24h TTL)
     cache.set("batteryCategories", categories, 86400);

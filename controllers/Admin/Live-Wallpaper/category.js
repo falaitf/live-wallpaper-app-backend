@@ -79,7 +79,7 @@ const getCategories = async (req, res) => {
     // 3️⃣ Fetch from DB with pagination & search
     const { count, rows: categories } = await Category.findAndCountAll({
       where: whereClause,
-      order: [["createdAt", "DESC"]],
+      order: [["sortOrder", "DESC"]],
       limit,
       offset,
     });
@@ -277,10 +277,67 @@ const deleteCategory = async (req, res) => {
   }
 };
 
+const updateSortOrder = async (req, res) => {
+  try {
+    const { categories } = req.body; 
+
+    for (const update of categories) {
+      const movedCategory = await Category.findByPk(update.id);
+      if (!movedCategory) continue;
+
+      const oldOrder = movedCategory.sortOrder;
+      const newOrder = update.sortOrder;
+
+      if (oldOrder === newOrder) continue;
+
+      // Moving DOWN (e.g., 8 → 13)
+      if (oldOrder < newOrder) {
+        await Category.increment(
+          { sortOrder: -1 },
+          {
+            where: {
+              sortOrder: { [Op.between]: [oldOrder + 1, newOrder] },
+            },
+          }
+        );
+      }
+      // Moving UP (e.g., 13 → 8)
+      else {
+        await Category.increment(
+          { sortOrder: 1 },
+          {
+            where: {
+              sortOrder: { [Op.between]: [newOrder, oldOrder - 1] },
+            },
+          }
+        );
+      }
+
+      // Finally, update the moved category to the new sortOrder
+      await Category.update(
+        { sortOrder: newOrder },
+        { where: { id: update.id } }
+      );
+    }
+
+    clearCategoryCache();
+
+    return res.status(200).json({
+      success: true,
+      message: "Category order updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating sort order:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
 module.exports = {
   addCategory,
   getCategories,
   updateCategory,
   deleteCategory,
-  getCategoryById
+  getCategoryById,
+  updateSortOrder
 };

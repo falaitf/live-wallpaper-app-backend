@@ -83,7 +83,7 @@ const appsConfig = [
 ];
 
 async function seedAppsAndPermissions(db) {
-  const { App, Permission, User, UserAppPermission } = db;
+  const { App, Permission, User, UserAppPermission, BatteryCategory } = db;
 
   // ✅ Ensure Apps & Permissions
   for (const appDef of appsConfig) {
@@ -148,6 +148,37 @@ async function seedAppsAndPermissions(db) {
       }
     }
   }
+
+//   const updateExistingSortOrders = async (req, res) => {
+//     try {
+//       // Fetch all existing categories, ordered by createdAt (oldest first)
+//       const categories = await BatteryCategory.findAll({
+//         order: [["createdAt", "ASC"]],
+//       });
+
+//       // Assign incremental sortOrder values
+//       let order = 1;
+//       for (const category of categories) {
+//         await BatteryCategory.update(
+//           { sortOrder: order },
+//           { where: { id: category.id } }
+//         );
+//         order++;
+//       }
+
+//       return res.status(200).json({
+//         success: true,
+//         message: "All existing categories sortOrder updated incrementally",
+//       });
+//     } catch (error) {
+//       console.error("Error updating sortOrder:", error);
+//       return res.status(500).json({
+//         success: false,
+//         message: "Failed to update sort orders",
+//       });
+//     }
+//   };
+// updateExistingSortOrders()
 
   console.log("✅ SuperAdmin linked to all apps & permissions");
 }

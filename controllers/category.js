@@ -11,7 +11,7 @@ const getCategories = async (req, res) => {
     }
 
     //  Fetch from DB
-    const categories = await Category.findAll({ order: [["createdAt", "DESC"]] });
+    const categories = await Category.findAll({ order: [["sortOrder", "DESC"]] });
 
     //  Save to cache
     cache.set("categories", categories, 86400); // 24 hours TTL

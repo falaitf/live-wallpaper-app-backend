@@ -11,6 +11,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true
+      },
+      sortOrder: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0
       }
     },
     {
@@ -18,6 +23,11 @@ module.exports = (sequelize, DataTypes) => {
       timestamps: true
     }
   );
+
+  Category.beforeCreate(async (category, options) => {
+    const maxOrder = await Category.max("sortOrder");
+    category.sortOrder = (maxOrder || 0) + 1;
+  });
 
   Category.associate = (models) => {
     Category.belongsToMany(models.Wallpaper, {

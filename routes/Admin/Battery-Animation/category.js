@@ -9,5 +9,6 @@ router.get("/get", authenticateJWT, authorizePermission("animationcategories.vie
 router.get("/get/:id", authenticateJWT, authorizePermission("animationcategories.view"), Controller.getBatteryCategoryById);
 router.put("/update/:id", authenticateJWT, authorizePermission("animationcategories.update"), Controller.updateBatteryCategory);
 router.delete("/delete/:id", authenticateJWT, authorizePermission("animationcategories.delete"), Controller.deleteBatteryCategory);
+router.put("/updateOrder", authenticateJWT, authorizePermission("animationcategories.update"), Controller.updateSortOrder);
 
 module.exports = router;

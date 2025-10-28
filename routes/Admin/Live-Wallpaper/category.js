@@ -9,5 +9,6 @@ router.get("/get", authenticateJWT, authorizePermission("categories.view"), Cont
 router.get("/get/:id", authenticateJWT, authorizePermission("categories.view"), Controller.getCategoryById);
 router.put("/update/:id", authenticateJWT, authorizePermission("categories.update"), Controller.updateCategory);
 router.delete("/delete/:id", authenticateJWT, authorizePermission("categories.delete"), Controller.deleteCategory);
+router.put("/updateOrder", authenticateJWT, authorizePermission("categories.update"), Controller.updateSortOrder);
 
 module.exports = router;
