@@ -197,7 +197,7 @@ exports.getAllVideos = async (req, res) => {
             include: [{ model: Category, as: "categories" }],
             limit,
             offset,
-            order: [["createdAt", "DESC"]],
+            order: [["sortOrder", "DESC"]],
             distinct: true,
         });
 
@@ -211,7 +211,8 @@ exports.getAllVideos = async (req, res) => {
             thumbnail: w.thumbnail ? w.thumbnail : null,
             gif: w.gif ? w.gif : null,
             type: w.type,
-            isPremium: w.isPremium
+            isPremium: w.isPremium,
+            sortOrder: w.sortOrder
         }));
 
         const response = { page, limit, total: count, videos };
@@ -316,7 +317,7 @@ exports.getVideosByCategory = async (req, res) => {
             ],
             limit,
             offset,
-            order: [["createdAt", "DESC"]],
+            order: [["sortOrder", "DESC"]],
         });
 
         const baseUrl = process.env.BACKEND_URI || `${req.protocol}://${req.get("host")}`;
@@ -329,7 +330,8 @@ exports.getVideosByCategory = async (req, res) => {
             thumbnail: w.thumbnail ? w.thumbnail : null,
             gif: w.gif ? w.gif : null,
             type: w.type,
-            isPremium: w.isPremium
+            isPremium: w.isPremium,
+            sortOrder: w.sortOrder
         }));
 
         const response = { page, limit, total: count, videos };
@@ -363,7 +365,7 @@ exports.searchVideos = async (req, res) => {
             distinct: true, // ensure correct count with joins
             limit,
             offset,
-            order: [["createdAt", "DESC"]],
+            order: [["sortOrder", "DESC"]],
         });
 
         // filter again if query should match categories
@@ -392,7 +394,7 @@ exports.searchVideos = async (req, res) => {
                 distinct: true,
                 limit,
                 offset,
-                order: [["createdAt", "DESC"]],
+                order: [["sortOrder", "DESC"]],
             });
 
             const baseUrl = process.env.BACKEND_URI || `${req.protocol}://${req.get("host")}`;
@@ -411,6 +413,7 @@ exports.searchVideos = async (req, res) => {
                     type: w.type,
                     status: w.status,
                     isPremium: w.isPremium,
+                    sortOrder: w.sortOrder,
                     categories: w.categories.map((c) => c.name),
                 })),
             });
@@ -431,7 +434,8 @@ exports.searchVideos = async (req, res) => {
                 gif: w.gif ? w.gif : null,
                 type: w.type,
                 category: w.categories?.[0]?.name || null,
-                isPremium: w.isPremium
+                isPremium: w.isPremium,
+                sortOrder: w.sortOrder
             })),
         });
     } catch (error) {
@@ -631,5 +635,60 @@ exports.deleteWallpaper = async (req, res) => {
     } catch (error) {
         console.error("❌ Error deleting wallpaper:", error);
         res.status(500).json({ success: false, message: "Failed to delete wallpaper" });
+    }
+};
+
+exports.updateSortOrder = async (req, res) => {
+    try {
+        const { categories } = req.body;
+
+        for (const update of categories) {
+            const movedWallpaper = await Wallpaper.findByPk(update.id);
+            if (!movedWallpaper) continue;
+
+            const oldOrder = movedWallpaper.sortOrder;
+            const newOrder = update.sortOrder;
+
+            if (oldOrder === newOrder) continue;
+
+            // Moving DOWN (e.g., 8 → 13)
+            if (oldOrder < newOrder) {
+                await Wallpaper.increment(
+                    { sortOrder: -1 },
+                    {
+                        where: {
+                            sortOrder: { [Op.between]: [oldOrder + 1, newOrder] },
+                        },
+                    }
+                );
+            }
+            // Moving UP (e.g., 13 → 8)
+            else {
+                await Wallpaper.increment(
+                    { sortOrder: 1 },
+                    {
+                        where: {
+                            sortOrder: { [Op.between]: [newOrder, oldOrder - 1] },
+                        },
+                    }
+                );
+            }
+
+            // Finally, update the moved Wallpaper to the new sortOrder
+            await Wallpaper.update(
+                { sortOrder: newOrder },
+                { where: { id: update.id } }
+            );
+        }
+
+        clearCacheExceptCategories();
+
+        return res.status(200).json({
+            success: true,
+            message: "Wallpaper order updated successfully",
+        });
+    } catch (error) {
+        console.error("Error updating sort order:", error);
+        res.status(500).json({ success: false, message: "Server error" });
     }
 };

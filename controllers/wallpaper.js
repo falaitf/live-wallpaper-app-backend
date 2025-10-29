@@ -21,7 +21,7 @@ exports.getAllVideos = async (req, res) => {
             include: [{ model: Category, as: "categories" }],
             limit,
             offset,
-            order: [["createdAt", "DESC"]],
+            order: [["sortOrder", "DESC"]],
             distinct: true,
         });
 
@@ -78,7 +78,7 @@ exports.getVideosByCategory = async (req, res) => {
             ],
             limit,
             offset,
-            order: [["createdAt", "DESC"]],
+            order: [["sortOrder", "DESC"]],
         });
 
         const baseUrl = process.env.BACKEND_URI || `${req.protocol}://${req.get("host")}`;
@@ -120,20 +120,33 @@ exports.getCategoriesWithWallpapers = async (req, res) => {
         const { count, rows: categories } = await Category.findAndCountAll({
             limit,
             offset,
-            order: [["createdAt", "DESC"]],
+            order: [["sortOrder", "DESC"]], // Sort categories
             include: [
                 {
                     model: Wallpaper,
                     as: "wallpapers",
-                    attributes: ["id", "title", "url", "thumbnail", "gif", "type", "isPremium"],
+                    attributes: [
+                        "id",
+                        "title",
+                        "url",
+                        "thumbnail",
+                        "gif",
+                        "type",
+                        "isPremium",
+                        "sortOrder",
+                    ],
+                    through: { attributes: [] },
                 },
             ],
             distinct: true,
         });
 
-        categories.forEach(category => {
-            category.wallpapers.sort((a, b) => b.id - a.id); 
-        });
+        // ✅ Manually sort wallpapers by sortOrder DESC
+        for (const category of categories) {
+            category.wallpapers = category.wallpapers.sort(
+                (a, b) => (b.sortOrder || 0) - (a.sortOrder || 0)
+            );
+        }
 
         //  Prepare response
         const formatted = categories.map((cat) => ({
@@ -194,7 +207,7 @@ exports.searchVideos = async (req, res) => {
             distinct: true, // ensure correct count with joins
             limit,
             offset,
-            order: [["createdAt", "DESC"]],
+            order: [["sortOrder", "DESC"]],
         });
 
         // filter again if query should match categories
@@ -223,7 +236,7 @@ exports.searchVideos = async (req, res) => {
                 distinct: true,
                 limit,
                 offset,
-                order: [["createdAt", "DESC"]],
+                order: [["sortOrder", "DESC"]],
             });
 
             const baseUrl = process.env.BACKEND_URI || `${req.protocol}://${req.get("host")}`;

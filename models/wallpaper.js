@@ -34,6 +34,11 @@ module.exports = (sequelize, DataTypes) => {
       isPremium: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+      },
+      sortOrder: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0
       }
     },
     {
@@ -41,6 +46,11 @@ module.exports = (sequelize, DataTypes) => {
       timestamps: true
     }
   );
+
+  Wallpaper.beforeCreate(async (wallpaper, options) => {
+    const maxOrder = await Wallpaper.max("sortOrder");
+    wallpaper.sortOrder = (maxOrder || 0) + 1;
+  });
 
   Wallpaper.associate = (models) => {
     Wallpaper.belongsToMany(models.Category, {

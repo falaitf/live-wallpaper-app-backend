@@ -32,5 +32,6 @@ router.put("/update/:id", authenticateJWT,
   ]), wallpaperController.updateWallpaper);
 router.delete("/delete/:id", authenticateJWT,
   authorizePermission("wallpapers.delete"), wallpaperController.deleteWallpaper);
+router.put("/updateOrder", authenticateJWT, authorizePermission("wallpapers.update"), wallpaperController.updateSortOrder);
 
 module.exports = router;
