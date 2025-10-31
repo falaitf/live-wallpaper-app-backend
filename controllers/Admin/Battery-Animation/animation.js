@@ -18,14 +18,14 @@ exports.createBatteryAnimation = async (req, res) => {
                 .json({ success: false, message: "Title, type, and categoryIds are required" });
         }
 
-        const alphaRegex = /^[A-Za-z\s]+$/;
-        if (!alphaRegex.test(title)) {
-            await transaction.rollback();
-            return res.status(400).json({
-                success: false,
-                message: "Title must contain only alphabetic characters and spaces",
-            });
-        }
+        // const alphaRegex = /^[A-Za-z\s]+$/;
+        // if (!alphaRegex.test(title)) {
+        //     await transaction.rollback();
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "Title must contain only alphabetic characters and spaces",
+        //     });
+        // }
 
         //  Step 2: Handle uploaded files
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
@@ -40,30 +40,30 @@ exports.createBatteryAnimation = async (req, res) => {
         }
 
         //  Step 3: Validate file types
-        if (!videoFile.mimetype.startsWith("video/")) {
-            await transaction.rollback();
-            return res.status(400).json({
-                success: false,
-                message: "Invalid video file type. Only video formats are allowed",
-            });
-        }
+        // if (!videoFile.mimetype.startsWith("video/")) {
+        //     await transaction.rollback();
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "Invalid video file type. Only video formats are allowed",
+        //     });
+        // }
 
-        const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
-        if (!allowedImageTypes.includes(thumbnailFile.mimetype)) {
-            await transaction.rollback();
-            return res.status(400).json({
-                success: false,
-                message: "Invalid thumbnail file type. Only JPG, PNG, or WEBP images are allowed",
-            });
-        }
+        // const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
+        // if (!allowedImageTypes.includes(thumbnailFile.mimetype)) {
+        //     await transaction.rollback();
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "Invalid thumbnail file type. Only JPG, PNG, or WEBP images are allowed",
+        //     });
+        // }
 
-        if (gifFile && gifFile.mimetype !== "image/gif") {
-            await transaction.rollback();
-            return res.status(400).json({
-                success: false,
-                message: "Invalid GIF file type. Only .gif format is allowed",
-            });
-        }
+        // if (gifFile && gifFile.mimetype !== "image/gif") {
+        //     await transaction.rollback();
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "Invalid GIF file type. Only .gif format is allowed",
+        //     });
+        // }
 
         //  Step 4: Validate file sizes
         const maxVideoSize = 20 * 1024 * 1024; // 20MB
@@ -163,7 +163,7 @@ exports.getAllBatteryAnimations = async (req, res) => {
             include: [{ model: BatteryCategory, as: "categories" }],
             limit,
             offset,
-            order: [["createdAt", "DESC"]],
+            order: [["sortOrder", "DESC"]],
             distinct: true,
         });
 
@@ -176,6 +176,7 @@ exports.getAllBatteryAnimations = async (req, res) => {
             gif: a.gif,
             type: a.type,
             isPremium: a.isPremium,
+            sortOrder: w.sortOrder
         }));
 
         const response = { page, limit, total: count, animations };
@@ -274,7 +275,7 @@ exports.getBatteryAnimationsByCategory = async (req, res) => {
             ],
             limit,
             offset,
-            order: [["createdAt", "DESC"]],
+            order: [["sortOrder", "DESC"]],
         });
 
         const animations = rows.map((a) => ({
@@ -286,6 +287,7 @@ exports.getBatteryAnimationsByCategory = async (req, res) => {
             gif: a.gif,
             type: a.type,
             isPremium: a.isPremium,
+            sortOrder: w.sortOrder
         }));
 
         const response = { page, limit, total: count, animations };
@@ -320,97 +322,75 @@ const getS3Key = (url) => {
 };
 
 exports.searchBatteryAnimations = async (req, res) => {
-  try {
-    let { query = '', page = 1, limit = 20 } = req.query;
-    page = parseInt(page);
-    limit = parseInt(limit);
-    const offset = (page - 1) * limit;
+    try {
+        let { query = '', page = 1, limit = 20, categories = '' } = req.query;
 
-    var { count, rows } = await BatteryAnimation.findAndCountAll({
-      include: [
-        {
-          model: BatteryCategory,
-          as: "categories",
-          through: { attributes: [] },
-          required: false,
-        },
-      ],
-      distinct: true,
-      limit,
-      offset,
-      order: [["createdAt", "DESC"]],
-    });
+        page = parseInt(page);
+        limit = parseInt(limit);
+        const offset = (page - 1) * limit;
 
-    if (query) {
-      rows = rows.filter(anim =>
-        anim.title.toLowerCase().includes(query.toLowerCase()) ||
-        anim.categories.some(cat =>
-          cat.name.toLowerCase().includes(query.toLowerCase())
-        )
-      );
-      count = rows.length;
+        // Parse category IDs if provided
+        let categoryIds = [];
+        if (categories) {
+            categoryIds = categories.split(',').map(id => parseInt(id.trim())).filter(Boolean);
+        }
+
+        const whereCondition = {};
+        if (query) {
+            whereCondition.title = { [Op.iLike]: `%${query}%` };
+        }
+
+        const includeCondition = [
+            {
+                model: BatteryCategory,
+                as: "categories",
+                through: { attributes: [] },
+                required: categoryIds.length > 0, // inner join if filtering by categories
+                ...(categoryIds.length > 0 && {
+                    where: { id: categoryIds }
+                })
+            },
+        ];
+
+        const { count, rows } = await BatteryAnimation.findAndCountAll({
+            where: whereCondition,
+            include: includeCondition,
+            distinct: true,
+            limit,
+            offset,
+            order: [["sortOrder", "DESC"]],
+        });
+
+        const baseUrl = process.env.BACKEND_URI || `${req.protocol}://${req.get("host")}`;
+
+        return res.json({
+            success: true,
+            total: count,
+            page,
+            limit,
+            animations: rows.map((a) => ({
+                id: a.id,
+                title: a.title,
+                url: a.url || null,
+                thumbnail: a.thumbnail || null,
+                gif: a.gif || null,
+                type: a.type,
+                status: a.status,
+                isPremium: a.isPremium,
+                sortOrder: a.sortOrder,
+                category: a.categories?.[0]?.name || null,
+            })),
+        });
+
+    } catch (error) {
+        console.error("❌ Error searching battery animations:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error searching battery animations",
+        });
     }
-
-    if (rows.length === 0) {
-      const fallback = await BatteryAnimation.findAndCountAll({
-        where: { title: { [Op.iLike]: `%${query}%` } },
-        include: [
-          {
-            model: BatteryCategory,
-            as: "categories",
-            through: { attributes: [] },
-            required: false,
-          },
-        ],
-        distinct: true,
-        limit,
-        offset,
-        order: [["createdAt", "DESC"]],
-      });
-
-      return res.json({
-        success: true,
-        total: fallback.count,
-        page,
-        limit,
-        animations: fallback.rows.map((a) => ({
-          id: a.id,
-          title: a.title,
-          url: a.url || null,
-          thumbnail: a.thumbnail || null,
-          gif: a.gif || null,
-          type: a.type,
-          status: a.status,
-          isPremium: a.isPremium,
-          categories: a.categories.map((c) => c.name),
-        })),
-      });
-    }
-
-    res.json({
-      success: true,
-      total: count,
-      page,
-      limit,
-      animations: rows.map((a) => ({
-        id: a.id,
-        title: a.title,
-        url: a.url || null,
-        thumbnail: a.thumbnail || null,
-        gif: a.gif || null,
-        type: a.type,
-        category: a.categories?.[0]?.name || null,
-        isPremium: a.isPremium,
-      })),
-    });
-  } catch (error) {
-    console.error("❌ Error searching battery animations:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error searching battery animations",
-    });
-  }
 };
+
 
 exports.updateBatteryAnimation = async (req, res) => {
   const transaction = await sequelize.transaction();
@@ -590,4 +570,59 @@ exports.deleteBatteryAnimation = async (req, res) => {
     console.error("❌ Error deleting battery animation:", error);
     res.status(500).json({ success: false, message: "Failed to delete battery animation" });
   }
+};
+
+exports.updateSortOrder = async (req, res) => {
+    try {
+        const { categories } = req.body;
+
+        for (const update of categories) {
+            const movedBatteryAnimation = await BatteryAnimation.findByPk(update.id);
+            if (!movedBatteryAnimation) continue;
+
+            const oldOrder = movedBatteryAnimation.sortOrder;
+            const newOrder = update.sortOrder;
+
+            if (oldOrder === newOrder) continue;
+
+            // Moving DOWN (e.g., 8 → 13)
+            if (oldOrder < newOrder) {
+                await BatteryAnimation.increment(
+                    { sortOrder: -1 },
+                    {
+                        where: {
+                            sortOrder: { [Op.between]: [oldOrder + 1, newOrder] },
+                        },
+                    }
+                );
+            }
+            // Moving UP (e.g., 13 → 8)
+            else {
+                await BatteryAnimation.increment(
+                    { sortOrder: 1 },
+                    {
+                        where: {
+                            sortOrder: { [Op.between]: [newOrder, oldOrder - 1] },
+                        },
+                    }
+                );
+            }
+
+            // Finally, update the moved BatteryAnimation to the new sortOrder
+            await BatteryAnimation.update(
+                { sortOrder: newOrder },
+                { where: { id: update.id } }
+            );
+        }
+
+        clearBatteryCache();
+
+        return res.status(200).json({
+            success: true,
+            message: "BatteryAnimation order updated successfully",
+        });
+    } catch (error) {
+        console.error("Error updating sort order:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
 };

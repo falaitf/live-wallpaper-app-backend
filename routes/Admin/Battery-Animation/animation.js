@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const upload = require("../../../middlewares/upload");
-const wallpaperController = require("../../../controllers/Admin/Battery-Animation/animation");
+const animationController = require("../../../controllers/Admin/Battery-Animation/animation");
 const { authenticateJWT } = require("../../../middlewares/authMiddleware");
 const authorizePermission = require("../../../middlewares/authorizePermission");
 
@@ -14,23 +14,24 @@ router.post(
     { name: "thumbnail", maxCount: 1 },
     { name: "gif", maxCount: 1 },
   ]),
-  wallpaperController.createBatteryAnimation
+  animationController.createBatteryAnimation
 );
 router.get("/get", authenticateJWT,
-  authorizePermission("animation.view"), wallpaperController.searchBatteryAnimations);
+  authorizePermission("animation.view"), animationController.searchBatteryAnimations);
 router.get("/get/:id", authenticateJWT,
-  authorizePermission("animation.view"), wallpaperController.getBatteryAnimationById);
+  authorizePermission("animation.view"), animationController.getBatteryAnimationById);
 router.get("/category/:categoryName", authenticateJWT,
-  authorizePermission("animation.view"), wallpaperController.getBatteryAnimationsByCategory);
+  authorizePermission("animation.view"), animationController.getBatteryAnimationsByCategory);
 router.get("/search", authenticateJWT,
-  authorizePermission("animation.view"), wallpaperController.searchBatteryAnimations);
+  authorizePermission("animation.view"), animationController.searchBatteryAnimations);
 router.put("/update/:id", authenticateJWT,
   authorizePermission("animation.update"), upload.fields([
     { name: "video", maxCount: 1 },
     { name: "thumbnail", maxCount: 1 },
     { name: "gif", maxCount: 1 },
-  ]), wallpaperController.updateBatteryAnimation);
+  ]), animationController.updateBatteryAnimation);
 router.delete("/delete/:id", authenticateJWT,
-  authorizePermission("animation.delete"), wallpaperController.deleteBatteryAnimation);
+  authorizePermission("animation.delete"), animationController.deleteBatteryAnimation);
+router.put("/updateOrder", authenticateJWT, authorizePermission("animation.update"), animationController.updateSortOrder);
 
 module.exports = router;

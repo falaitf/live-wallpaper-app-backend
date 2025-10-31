@@ -17,7 +17,7 @@ exports.getAllBatteryAnimations = async (req, res) => {
       include: [{ model: BatteryCategory, as: "categories" }],
       limit,
       offset,
-      order: [["createdAt", "DESC"]],
+      order: [["sortOrder", "DESC"]],
       distinct: true,
     });
 
@@ -70,7 +70,7 @@ exports.getBatteryAnimationsByCategory = async (req, res) => {
       ],
       limit,
       offset,
-      order: [["createdAt", "DESC"]],
+      order: [["sortOrder", "DESC"]],
     });
 
     const animations = rows.map((a) => ({
@@ -110,19 +110,19 @@ exports.getBatteryCategoriesWithAnimations = async (req, res) => {
     const { count, rows: categories } = await BatteryCategory.findAndCountAll({
       limit,
       offset,
-      order: [["createdAt", "DESC"]],
+      order: [["sortOrder", "DESC"]],
       include: [
         {
           model: BatteryAnimation,
           as: "animations",
-          attributes: ["id", "title", "url", "thumbnail", "gif", "type", "isPremium"],
+          attributes: ["id", "title", "url", "thumbnail", "gif", "type", "isPremium","sortOrder",],
         },
       ],
       distinct: true,
     });
 
     categories.forEach((cat) => {
-      cat.animations.sort((a, b) => b.id - a.id);
+      cat.animations.sort((a, b) => b.sortOrder - a.sortOrder);
     });
 
     const formatted = categories.map((cat) => ({
@@ -180,7 +180,7 @@ exports.searchBatteryAnimations = async (req, res) => {
       distinct: true,
       limit,
       offset,
-      order: [["createdAt", "DESC"]],
+      order: [["sortOrder", "DESC"]],
     });
 
     // Filter by title or category
@@ -210,7 +210,7 @@ exports.searchBatteryAnimations = async (req, res) => {
         distinct: true,
         limit,
         offset,
-        order: [["createdAt", "DESC"]],
+        order: [["sortOrder", "DESC"]],
       });
 
       return res.json({

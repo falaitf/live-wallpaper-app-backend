@@ -17,14 +17,14 @@ exports.createWallpaper = async (req, res) => {
                 .json({ success: false, message: "Title, type, and categoryIds are required" });
         }
 
-        const alphaRegex = /^[A-Za-z\s]+$/;
-        if (!alphaRegex.test(title)) {
-            await transaction.rollback();
-            return res.status(400).json({
-                success: false,
-                message: "Title must contain only alphabetic characters and spaces",
-            });
-        }
+        // const alphaRegex = /^[A-Za-z\s]+$/;
+        // if (!alphaRegex.test(title)) {
+        //     await transaction.rollback();
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "Title must contain only alphabetic characters and spaces",
+        //     });
+        // }
 
         //  Step 2: Handle uploaded files
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
@@ -39,30 +39,30 @@ exports.createWallpaper = async (req, res) => {
         }
 
         //  Step 3: Validate file types
-        if (!videoFile.mimetype.startsWith("video/")) {
-            await transaction.rollback();
-            return res.status(400).json({
-                success: false,
-                message: "Invalid video file type. Only video formats are allowed",
-            });
-        }
+        // if (!videoFile.mimetype.startsWith("video/")) {
+        //     await transaction.rollback();
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "Invalid video file type. Only video formats are allowed",
+        //     });
+        // }
 
-        const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
-        if (!allowedImageTypes.includes(thumbnailFile.mimetype)) {
-            await transaction.rollback();
-            return res.status(400).json({
-                success: false,
-                message: "Invalid thumbnail file type. Only JPG, PNG, or WEBP images are allowed",
-            });
-        }
+        // const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
+        // if (!allowedImageTypes.includes(thumbnailFile.mimetype)) {
+        //     await transaction.rollback();
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "Invalid thumbnail file type. Only JPG, PNG, or WEBP images are allowed",
+        //     });
+        // }
 
-        if (gifFile && gifFile.mimetype !== "image/gif") {
-            await transaction.rollback();
-            return res.status(400).json({
-                success: false,
-                message: "Invalid GIF file type. Only .gif format is allowed",
-            });
-        }
+        // if (gifFile && gifFile.mimetype !== "image/gif") {
+        //     await transaction.rollback();
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "Invalid GIF file type. Only .gif format is allowed",
+        //     });
+        // }
 
         //  Step 4: Validate file sizes
         const maxVideoSize = 20 * 1024 * 1024;     // 20 MB
@@ -347,81 +347,47 @@ exports.getVideosByCategory = async (req, res) => {
 
 exports.searchVideos = async (req, res) => {
     try {
-        let { query = '', page = 1, limit = 20 } = req.query;
+        let { query = '', page = 1, limit = 20, categories = '' } = req.query;
 
         page = parseInt(page);
         limit = parseInt(limit);
         const offset = (page - 1) * limit;
 
-        var { count, rows } = await Wallpaper.findAndCountAll({
-            include: [
-                {
-                    model: Category,
-                    as: "categories",
-                    through: { attributes: [] },
-                    required: false, // LEFT JOIN
-                },
-            ],
-            distinct: true, // ensure correct count with joins
+        // Parse category IDs if provided
+        let categoryIds = [];
+        if (categories) {
+            categoryIds = categories.split(',').map(id => parseInt(id.trim())).filter(Boolean);
+        }
+
+        const whereCondition = {};
+        if (query) {
+            whereCondition.title = { [Op.iLike]: `%${query}%` };
+        }
+
+        const includeCondition = [
+            {
+                model: Category,
+                as: "categories",
+                through: { attributes: [] },
+                required: categoryIds.length > 0, // inner join if filtering by categories
+                ...(categoryIds.length > 0 && {
+                    where: { id: categoryIds }
+                })
+            },
+        ];
+
+        const { count, rows } = await Wallpaper.findAndCountAll({
+            where: whereCondition,
+            include: includeCondition,
+            distinct: true,
             limit,
             offset,
             order: [["sortOrder", "DESC"]],
         });
 
-        // filter again if query should match categories
-        if (query) {
-            rows = rows.filter(wp =>
-                wp.title.toLowerCase().includes(query.toLowerCase()) ||
-                wp.categories.some(cat => cat.name.toLowerCase().includes(query.toLowerCase()))
-            );
-            count = rows.length;
-        }
-
-        // If no results found in categories, search again only in title
-        if (rows.length === 0) {
-            const fallback = await Wallpaper.findAndCountAll({
-                where: {
-                    title: { [Op.iLike]: `%${query}%` },
-                },
-                include: [
-                    {
-                        model: Category,
-                        as: "categories",
-                        through: { attributes: [] },
-                        required: false,
-                    },
-                ],
-                distinct: true,
-                limit,
-                offset,
-                order: [["sortOrder", "DESC"]],
-            });
-
-            const baseUrl = process.env.BACKEND_URI || `${req.protocol}://${req.get("host")}`;
-
-            return res.json({
-                success: true,
-                total: fallback.count,
-                page,
-                limit,
-                wallpapers: fallback.rows.map((w) => ({
-                    id: w.id,
-                    title: w.title,
-                    url: w.url ? w.url : null,
-                    thumbnail: w.thumbnail ? w.thumbnail : null,
-                    gif: w.gif ? w.gif : null,
-                    type: w.type,
-                    status: w.status,
-                    isPremium: w.isPremium,
-                    sortOrder: w.sortOrder,
-                    categories: w.categories.map((c) => c.name),
-                })),
-            });
-        }
-
         const baseUrl = process.env.BACKEND_URI || `${req.protocol}://${req.get("host")}`;
 
-        res.json({
+        return res.json({
             success: true,
             total: count,
             page,
@@ -429,20 +395,22 @@ exports.searchVideos = async (req, res) => {
             wallpapers: rows.map((w) => ({
                 id: w.id,
                 title: w.title,
-                url: w.url ? w.url : null,
-                thumbnail: w.thumbnail ? w.thumbnail : null,
-                gif: w.gif ? w.gif : null,
+                url: w.url || null,
+                thumbnail: w.thumbnail || null,
+                gif: w.gif || null,
                 type: w.type,
                 category: w.categories?.[0]?.name || null,
                 isPremium: w.isPremium,
-                sortOrder: w.sortOrder
+                sortOrder: w.sortOrder,
             })),
         });
+
     } catch (error) {
         console.error("❌ Error searching videos:", error);
         res.status(500).json({ success: false, message: "Error searching videos" });
     }
 };
+
 
 exports.updateWallpaper = async (req, res) => {
     const transaction = await sequelize.transaction();

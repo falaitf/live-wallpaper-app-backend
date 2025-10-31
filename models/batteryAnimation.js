@@ -34,6 +34,11 @@ module.exports = (sequelize, DataTypes) => {
       isPremium: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+      },
+      sortOrder: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0
       }
     },
     {
@@ -41,6 +46,10 @@ module.exports = (sequelize, DataTypes) => {
       timestamps: true
     }
   );
+  BatteryAnimation.beforeCreate(async (batteryAnimation, options) => {
+    const maxOrder = await BatteryAnimation.max("sortOrder");
+    batteryAnimation.sortOrder = (maxOrder || 0) + 1;
+  });
 
   BatteryAnimation.associate = (models) => {
     BatteryAnimation.belongsToMany(models.BatteryCategory, {
