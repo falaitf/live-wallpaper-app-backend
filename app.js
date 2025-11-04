@@ -14,10 +14,8 @@ var usersRouter = require('./routes/users');
 
 const publicLimiterWithCaptcha = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minutes
-  max: 100,
+  max: 200000, // Allow 200k requests per minute per IP to support high user traffic
   handler: (req, res, next, options) => {
-    // Print/log client IP when limit is exceeded
-    console.log("⚠️ Rate limit exceeded by IP:", req.ip);
 
     res.status(options.statusCode).json({
       error: "Too many requests",
