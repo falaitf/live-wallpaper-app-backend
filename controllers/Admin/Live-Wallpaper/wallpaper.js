@@ -17,14 +17,14 @@ exports.createWallpaper = async (req, res) => {
                 .json({ success: false, message: "Title, type, and categoryIds are required" });
         }
 
-        // const alphaRegex = /^[A-Za-z\s]+$/;
-        // if (!alphaRegex.test(title)) {
-        //     await transaction.rollback();
-        //     return res.status(400).json({
-        //         success: false,
-        //         message: "Title must contain only alphabetic characters and spaces",
-        //     });
-        // }
+        const alphaRegex = /^[A-Za-z\s]+$/;
+        if (!alphaRegex.test(title)) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Title must contain only alphabetic characters and spaces",
+            });
+        }
 
         //  Step 2: Handle uploaded files
         const videoFile = video ? (Array.isArray(video) ? video[0] : video) : null;
@@ -39,30 +39,30 @@ exports.createWallpaper = async (req, res) => {
         }
 
         //  Step 3: Validate file types
-        // if (!videoFile.mimetype.startsWith("video/")) {
-        //     await transaction.rollback();
-        //     return res.status(400).json({
-        //         success: false,
-        //         message: "Invalid video file type. Only video formats are allowed",
-        //     });
-        // }
+        if (!videoFile.mimetype.startsWith("video/")) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Invalid video file type. Only video formats are allowed",
+            });
+        }
 
-        // const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
-        // if (!allowedImageTypes.includes(thumbnailFile.mimetype)) {
-        //     await transaction.rollback();
-        //     return res.status(400).json({
-        //         success: false,
-        //         message: "Invalid thumbnail file type. Only JPG, PNG, or WEBP images are allowed",
-        //     });
-        // }
+        const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
+        if (!allowedImageTypes.includes(thumbnailFile.mimetype)) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Invalid thumbnail file type. Only JPG, PNG, or WEBP images are allowed",
+            });
+        }
 
-        // if (gifFile && gifFile.mimetype !== "image/gif") {
-        //     await transaction.rollback();
-        //     return res.status(400).json({
-        //         success: false,
-        //         message: "Invalid GIF file type. Only .gif format is allowed",
-        //     });
-        // }
+        if (gifFile && gifFile.mimetype !== "image/gif") {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: "Invalid GIF file type. Only .gif format is allowed",
+            });
+        }
 
         //  Step 4: Validate file sizes
         const maxVideoSize = 20 * 1024 * 1024;     // 20 MB
