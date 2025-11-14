@@ -6,7 +6,7 @@ const {
 } = require("../../../utils/db").loadModels();
 
 const cache = require("../../../utils/cache");
-const { deleteFromS3, getS3Key } = require("../../../utils/uploadToS3");
+const { deleteFromS3, getS3Key } = require("../../../utils/uploadToS3ForBattery");
 const { Op } = require("sequelize");
 
 //  Helper to clear cache

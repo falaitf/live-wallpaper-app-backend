@@ -1,5 +1,5 @@
 const { BatteryAnimation, BatteryCategory, sequelize } = require("../../../utils/db").loadModels();
-const { uploadToS3, deleteFromS3 } = require("../../../utils/uploadToS3");
+const { uploadToS3, deleteFromS3 } = require("../../../utils/uploadToS3ForBattery");
 const { Op, Sequelize } = require("sequelize");
 const cache = require("../../../utils/cache");
 
